@@ -1,4 +1,4 @@
 **/build/
-/BinaryDice/build.sh
-/BinaryDice/makefile
+build.sh
+makefile
 .DS_Store
