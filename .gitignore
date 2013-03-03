@@ -1,1 +1,4 @@
 **/build/
+**/.DS_Store
+/BinaryDice/build.sh
+/BinaryDice/makefile
