@@ -10,7 +10,7 @@ The default Arduino IDE spartan at best. I looked at setting up Eclipse as my de
 
 The next thing I tried was [Sublime Text](http://www.sublimetext.com/). There is an Ardunio plugin called [Stino](https://github.com/Robot-Will/Stino) that turns Sublime into a not bad IDE. In terms of writing your programs, Stino can pretty much do everything the Arduino IDE can do: compile programs, upload them to your Arduino board, import libraries, etc.
 
-![image](http://raw.github.com/topgenorth/arduino/master/screenshots/sublime_menu_for_arduino.png)
+![image](./screenshots/sublime_menu_for_arduino.png)
 
 Installing Stino isn't that bad:
 
