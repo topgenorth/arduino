@@ -5,18 +5,31 @@ const unsigned int BAUD_RATE = 9600;
 void setup() 
 {
 	Serial.begin(BAUD_RATE);
+	Serial.println("Starting...");
+	delay(500);
 }
 
 void loop() 
 {
-	Serial.print(get_temperature() );
-	Serial.println(" C");
+	float temp = get_temperature();
 	delay(1000);
 } 
 
 float get_temperature() 
 {
-	const int sensor_voltage = analogRead(TEMP_SENSOR_PIN);
-	const float voltage = sensor_voltage * SUPPLY_VOLTAGE / 1024;
-	return (voltage * 1000 -500)/10;
+	// get a reading from the sensor. 
+	const int reading = analogRead(TEMP_SENSOR_PIN);
+	Serial.print(reading);
+	Serial.print(", ");
+
+	// convert that reading to voltage
+	const float voltage = reading * SUPPLY_VOLTAGE / 1024;
+	Serial.print(voltage);
+	Serial.print(", ");
+
+	// Concert the voltage to degrees Celsius.
+	const float temp = (voltage - .5) * 100;
+	Serial.println(temp);
+
+	return temp;
 }
