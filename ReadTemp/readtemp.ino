@@ -4,11 +4,14 @@
 // Analog A0
 const unsigned int TEMP_SENSOR_PIN=0;
 
+// Digital pins we need for the SD card.
 const unsigned int CS_PIN=4;
 const unsigned int SDCARD_PIN=10;
 
 const float SUPPLY_VOLTAGE = 5.0;
 const unsigned int BAUD_RATE = 9600;
+
+const unsigned long PAUSE_BETWEEN_TEMP_READINGS = 60000;
 
 File _logFile;
 
@@ -23,7 +26,7 @@ void setup()
 void loop() 
 {
 	float temp = get_temperature();
-	delay(1000);
+	delay(PAUSE_BETWEEN_TEMP_READINGS);
 } 
 
 void init_serial() 
@@ -77,7 +80,6 @@ void write_temp(int reading, float volts, float temp)
 	Serial.print(volts);
 	Serial.print(", ");
 	Serial.println(temp);
-
 
 	_logFile = SD.open("readtemp.txt", FILE_WRITE);
 	if (_logFile)
