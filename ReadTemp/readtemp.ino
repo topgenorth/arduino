@@ -1,10 +1,18 @@
+/*
+ * Just a simple program to read the values from a TMP36 analog sensor.
+ * 
+ * The middle pin of the sensor uses A0. 
+ * The left pin should lead to 5V, while the right pin is to ground.
+ *
+ * April 24th, 2013
+ */
 
 #include <SD.h>
 
 // Analog A0
 const unsigned int TEMP_SENSOR_PIN=0;
 
-// Digital pins we need for the SD card.
+// Digital pins we need for the Ethernet shield
 const unsigned int CS_PIN=4;
 const unsigned int SDCARD_PIN=10;
 
@@ -21,6 +29,7 @@ void setup()
 	init_serial();
 	delay(500);
 	init_sdcard();
+	delay(500);
 }
 
 void loop() 
@@ -33,7 +42,6 @@ void init_serial()
 {
 	Serial.begin(BAUD_RATE);
 	Serial.println("Starting...");
-
 }
 
 void init_sdcard() 
@@ -61,12 +69,9 @@ void init_sdcard()
 
 float get_temperature() 
 {
-	// get a reading from the sensor. 
 	const int reading = analogRead(TEMP_SENSOR_PIN);
-	// convert that reading to voltage
-	const float voltage = reading * SUPPLY_VOLTAGE / 1024;
-	// convert the voltage to degrees Celsius.
-	const float temp = (voltage - .5) * 100;
+	const float voltage = reading * SUPPLY_VOLTAGE / 1024.0;
+	const float temp = (voltage - 0.5) * 100;
 
 	write_temp(reading, voltage, temp);
 
@@ -78,8 +83,9 @@ void write_temp(int reading, float volts, float temp)
 	Serial.print(reading);
 	Serial.print(", ");
 	Serial.print(volts);
-	Serial.print(", ");
-	Serial.println(temp);
+	Serial.print("V, ");
+	Serial.print(temp);
+	Serial.println(" C");
 
 	_logFile = SD.open("readtemp.txt", FILE_WRITE);
 	if (_logFile)
@@ -88,6 +94,9 @@ void write_temp(int reading, float volts, float temp)
 		_logFile.print(",");
 		_logFile.print(volts);
 		_logFile.print(",");
-		_logFile.println(temp);
+		_logFile.print(temp);
+		_logFile.println(" C");
+		_logFile.close();
 	}
+
 }
