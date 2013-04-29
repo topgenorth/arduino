@@ -15,21 +15,28 @@
 #include <Ethernet.h>
 #include <HttpClient.h>
 #include <Cosm.h>
+#include "Secrets.h"  // API key is defined in this file.
 
-#define API_KEY "" // COSM API Key
+// Millisecond delays, depending on the context
+const unsigned long IP_DELAY              = 5000;     // The delay while trying to get the IP address via DHCP.
+const unsigned long CONNECTION_INTERVAL   = 60000;    // Only poll the sensor every 10 minutes.
 
-const unsigned long IP_DELAY              = 5000;     // The number of seconds to wait while trying to get IP.
-const unsigned long CONNECTION_INTERVAL   = 60000;    // delay between connecting to Cosm in milliseconds
+// COSM specific values
 const unsigned long FEED_ID               = 128080;   // Cosm feed ID
+const unsigned int NUMBER_OF_DATASTREAMS  = 2;
+
+// Pins in use by this sketch.
 const unsigned int TEMP_SENSOR_PIN        = 3;        // The temperature sensor pin is A0
 const unsigned int CS_PIN                 = 4;        // Required by the Ethernet shield
 const unsigned int SDCARD_PIN             = 10;       // Required by the Ethernet shield
+
 const unsigned int BAUD_RATE              = 9600;
+
+// Constants for converting the TMP36 readings into degress Celsius
 const float TEMPERATURE_ADJUSTMENT        = -2.7;     // My TMP36 seems to run about 3.2C hot?
 const float SUPPLY_VOLTAGE                = 5000;     // milliVolts
 
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // MAC address for your Ethernet shield
-unsigned long lastConnectionTime = 0;                // last time we connected to Cosm
 
 // Define the string for our datastream ID
 CosmDatastream datastreams[] = {
@@ -38,33 +45,29 @@ CosmDatastream datastreams[] = {
 };
 
 // Wrap the datastream into a feed
-CosmFeed feed(FEED_ID, datastreams, 2 /* number of datastreams */);
+CosmFeed feed(FEED_ID, datastreams, NUMBER_OF_DATASTREAMS);
 
 EthernetClient client;
 CosmClient cosmclient(client);
 
 void setup() {
+  delay(250);
   Serial.begin(BAUD_RATE);
+  Serial.println();
+  Serial.println("********** SETUP **********");
 
-  Serial.println("***************************");
   while (Ethernet.begin(mac) != 1) {
     Serial.println("Error getting IP address via DHCP, trying again...");
     delay(IP_DELAY);
   }
   print_ip_address(Ethernet.localIP());
-
-  lastConnectionTime = CONNECTION_INTERVAL + 1; // this will trigger a read when the application first starts up.
-
-  Serial.println("***************************");
+  Serial.println("****** Setup Complete *****");
 }
 
 void loop() {
-  // main program loop
-  if (millis() - lastConnectionTime > CONNECTION_INTERVAL) {
-    Serial.println();
-    read_temperature_value();
-    lastConnectionTime = millis();
-  }
+  Serial.println();
+  read_temperature_value();
+  delay(CONNECTION_INTERVAL);
 }
 
 void read_temperature_value() {
