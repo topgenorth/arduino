@@ -36,19 +36,18 @@ const unsigned int BAUD_RATE              = 9600;
 const float TEMPERATURE_ADJUSTMENT        = -2.7;     // My TMP36 seems to run about 3.2C hot?
 const float SUPPLY_VOLTAGE                = 5000;     // milliVolts
 
-byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // MAC address for your Ethernet shield
 
-// Define the string for our datastream ID
+// COSM specific variables.
 CosmDatastream datastreams[] = {
   CosmDatastream("tmp36_sensor_reading", strlen("tmp36_sensor_reading"), DATASTREAM_FLOAT),
   CosmDatastream("tmp36_temperature",    strlen("tmp36_temperature"),    DATASTREAM_FLOAT),
 };
-
-// Wrap the datastream into a feed
 CosmFeed feed(FEED_ID, datastreams, NUMBER_OF_DATASTREAMS);
-
-EthernetClient client;
 CosmClient cosmclient(client);
+
+// Ethernet variables.
+EthernetClient client;
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // MAC address for your Ethernet shield
 
 void setup() {
   delay(250);
