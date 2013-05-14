@@ -10,12 +10,12 @@
   *
   * April 28, 2013
   */
-
 #include <SPI.h>
 #include <Ethernet.h>
 #include <HttpClient.h>
 #include <Cosm.h>
 #include "Secrets.h"  // API key is defined in this file.
+#include <SD.h>
 
 // Millisecond delays, depending on the context
 const unsigned long IP_DELAY              = 5000;     // The delay while trying to get the IP address via DHCP.
@@ -36,6 +36,9 @@ const unsigned int BAUD_RATE              = 9600;
 const float TEMPERATURE_ADJUSTMENT        = -2.7;     // My TMP36 seems to run about 3.2C hot?
 const float SUPPLY_VOLTAGE                = 5000;     // milliVolts
 
+// Ethernet variables.
+EthernetClient client;
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // MAC address for your Ethernet shield
 
 // COSM specific variables.
 CosmDatastream datastreams[] = {
@@ -44,10 +47,6 @@ CosmDatastream datastreams[] = {
 };
 CosmFeed feed(FEED_ID, datastreams, NUMBER_OF_DATASTREAMS);
 CosmClient cosmclient(client);
-
-// Ethernet variables.
-EthernetClient client;
-byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // MAC address for your Ethernet shield
 
 void setup() {
   delay(250);
@@ -75,10 +74,10 @@ void read_temperature_value() {
     const float temperature = ((milliVolts - 500) / 10) + TEMPERATURE_ADJUSTMENT;
 
     log_temperature(sensorValue, milliVolts, temperature);
-    sendDataToCosm(sensorValue, temperature);
+    send_data_to_cosm(sensorValue, temperature);
 }
 
-void sendDataToCosm(int sensorValue, float temperature) {
+void send_data_to_cosm(int sensorValue, float temperature) {
   datastreams[0].setFloat(sensorValue);
   datastreams[1].setFloat(temperature);
 
