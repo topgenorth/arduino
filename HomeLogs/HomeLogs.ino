@@ -15,7 +15,6 @@
 #include <HttpClient.h>
 #include <Cosm.h>
 #include "Secrets.h"  // API key is defined in this file.
-#include <SD.h>
 
 // Millisecond delays, depending on the context
 const unsigned long IP_DELAY              = 5000;     // The delay while trying to get the IP address via DHCP.
@@ -51,15 +50,21 @@ CosmClient cosmclient(client);
 void setup() {
   delay(250);
   Serial.begin(BAUD_RATE);
+
   Serial.println();
   Serial.println("********** SETUP **********");
 
+  init_ethernet();
+
+  Serial.println("****** SETUP COMPLETE *****");
+}
+
+void init_ethernet() {
   while (Ethernet.begin(mac) != 1) {
     Serial.println("Error getting IP address via DHCP, trying again...");
     delay(IP_DELAY);
   }
   print_ip_address(Ethernet.localIP());
-  Serial.println("****** Setup Complete *****");
 }
 
 void loop() {
