@@ -13,16 +13,12 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <HttpClient.h>
-#include <Cosm.h>
 #include "Secrets.h"  // API key is defined in this file.
+
 
 // Millisecond delays, depending on the context
 const unsigned long IP_DELAY              = 5000;     // The delay while trying to get the IP address via DHCP.
 const unsigned long CONNECTION_INTERVAL   = 60000;    // Only poll the sensor every 10 minutes.
-
-// COSM specific values
-const unsigned long FEED_ID               = 128080;   // Cosm feed ID
-const unsigned int NUMBER_OF_DATASTREAMS  = 2;
 
 // Pins in use by this sketch.
 const unsigned int TEMP_SENSOR_PIN        = 3;        // The temperature sensor pin is A0
@@ -38,14 +34,6 @@ const float SUPPLY_VOLTAGE                = 5000;     // milliVolts
 // Ethernet variables.
 EthernetClient client;
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // MAC address for your Ethernet shield
-
-// COSM specific variables.
-CosmDatastream datastreams[] = {
-  CosmDatastream("tmp36_sensor_reading", strlen("tmp36_sensor_reading"), DATASTREAM_FLOAT),
-  CosmDatastream("tmp36_temperature",    strlen("tmp36_temperature"),    DATASTREAM_FLOAT),
-};
-CosmFeed feed(FEED_ID, datastreams, NUMBER_OF_DATASTREAMS);
-CosmClient cosmclient(client);
 
 void setup() {
   delay(250);
@@ -79,17 +67,6 @@ void read_temperature_value() {
     const float temperature = ((milliVolts - 500) / 10) + TEMPERATURE_ADJUSTMENT;
 
     log_temperature(sensorValue, milliVolts, temperature);
-    send_data_to_cosm(sensorValue, temperature);
-}
-
-void send_data_to_cosm(int sensorValue, float temperature) {
-  datastreams[0].setFloat(sensorValue);
-  datastreams[1].setFloat(temperature);
-
-  Serial.print("Uploading to Cosm...");
-  int ret = cosmclient.put(feed, API_KEY);
-  Serial.print("PUT return code: ");
-  Serial.println(ret);
 }
 
 void print_ip_address(IPAddress ip) {
