@@ -14,8 +14,8 @@ const byte DHCP_MAX_ATTEMPT_COUNT          = 5;
 const unsigned int IP_DELAY                = 5000;     // The delay while trying to get the IP address via DHCP.
 const unsigned int IP_DELAY_SECONDS        = IP_DELAY / 1000;
 
-//const unsigned long CONNECTION_INTERVAL    = 60000;    // Only poll the sensor every 10 minutes.
-const unsigned int CONNECTION_INTERVAL     = 1000; 
+const unsigned long CONNECTION_INTERVAL    = 60000;    // Only poll the sensor every 10 minutes.
+//const unsigned int CONNECTION_INTERVAL     = 1000; 
 
 // Pins in use by this sketch.
 const byte TEMP_SENSOR_PIN                 = 3;        // The temperature sensor pin is A0
@@ -36,14 +36,12 @@ byte mac[] = {
 // Xively stuff
 char sensorID[]                            = "tmp36_sensor_reading";
 char temperatureID[]                       = "tmp36_temperature";
-char temperatureAdjustmentID[]             = "tmp36_temperature_adjustment";
 
 XivelyDatastream datastreams[] = {
   XivelyDatastream(sensorID, strlen(sensorID), DATASTREAM_FLOAT),
   XivelyDatastream(temperatureID, strlen(temperatureID), DATASTREAM_FLOAT),
-  XivelyDatastream(temperatureAdjustmentID, strlen(temperatureAdjustmentID), DATASTREAM_FLOAT),
 };
-XivelyFeed feed(XIVELY_FEED_ID, datastreams, 3);
+XivelyFeed feed(XIVELY_FEED_ID, datastreams, 2);
 XivelyClient xivelyclient(client);
 
 void setup() {
@@ -54,7 +52,6 @@ void setup() {
   Serial.println("********** SETUP     **********");
 
   init_ethernet();
-  init_temperature_adjustment() ;
 
   Serial.println();
   Serial.println("********** SETUP COMPLETE *****");    
@@ -66,38 +63,6 @@ void loop() {
   delay(CONNECTION_INTERVAL);
 }
 
-void init_temperature_adjustment() {  
-  if (initializedEthernet) {
-    Serial.print("Contacting Xively...");
-    int getReturn = xivelyclient.get(feed, XIVELY_API_KEY);
-
-    if(getReturn > 0){
-      temperatureAdjustment = feed[2].getFloat();
-      if (temperatureAdjustment == 0.0) {
-        temperatureAdjustment = DEFAULT_TEMPERATURE_ADJUSTMENT;
-        Serial.print("for some reason the Xively value is 0, using ");
-        Serial.print(temperatureAdjustment);
-        Serial.print(" instead");
-      }
-      else {
-        Serial.print("got temperature adjustment : ");
-        Serial.print(temperatureAdjustment);
-      }
-    }
-    else {
-      Serial.print("HTTP Error");
-      Serial.print(getReturn);
-    }
-  }
-  else {
-    temperatureAdjustment = DEFAULT_TEMPERATURE_ADJUSTMENT;
-    Serial.print("No internet connection, can't read temperature adjustment value");
-  }
-  
-  Serial.println(".");
-
-  return;
-}
 
 int init_ethernet() {
   int tryToInitializeEthernet = 1;
@@ -182,10 +147,7 @@ void log_temperature(int sensorValue, float milliVolts, float temperature) {
 
 void send_to_xively(int sensorValue, float temperature) {
   datastreams[0].setFloat(sensorValue);
-  //  datastreams[1].setFloat(temperature);
+  datastreams[1].setFloat(temperature);
   int ret = xivelyclient.put(feed, XIVELY_API_KEY);
-
-  //  Serial.print("Uploaded data to Xively, ");
-  //  Serial.println(ret);
 }
 
