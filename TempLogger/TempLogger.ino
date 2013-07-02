@@ -6,10 +6,12 @@
 #include <Ethernet.h>
 
 const unsigned int BAUD_RATE              = 9600;
-const unsigned int DHCP_MAX_ATTEMPT_COUNT = 15;
+const unsigned int DHCP_MAX_ATTEMPT_COUNT = 5;
 
 // Millisecond delays, depending on the context
 const unsigned long IP_DELAY              = 5000;     // The delay while trying to get the IP address via DHCP.
+const unsigned short IP_DELAY_SECONDS     = IP_DELAY / 1000;
+
 //const unsigned long CONNECTION_INTERVAL   = 60000;    // Only poll the sensor every 10 minutes.
 const unsigned long CONNECTION_INTERVAL   = 1000; 
 
@@ -32,13 +34,14 @@ void setup() {
   Serial.begin(BAUD_RATE);
 
   Serial.println();
-  Serial.println("********** SETUP **********");
+  Serial.println("********** SETUP     **********");
 
   // Always initialize the SDCard first.
   init_sdcard();  
   init_ethernet();
 
-  Serial.println("****** SETUP COMPLETE *****");    
+  Serial.println();
+  Serial.println("********** SETUP COMPLETE *****");    
 }
 
 void loop() {
@@ -48,26 +51,58 @@ void loop() {
 }
 
 void init_ethernet() {
-  int initCount = 0;
-  File logFile = SD.open("readtemp.txt", FILE_WRITE);
-  if (!logFile) {
-    Serial.println("The SD card is not initialized - exiting.");
-    return;
-  }
+  int tryToInitializeEthernet = 1;
+  int initCount               = 0;
+  int intializedEthernet      = 0;
+  const unsigned short SECONDS = IP_DELAY / 1000;
   
-  logFile.print("Initializing Ethernet...");
-  Serial.println("Initializing Ethernet...");
-  initializedEthernet = 0;
+  Serial.println("Initializing Ethernet.");
 
-  while (Ethernet.begin(mac) != 1) {
-    Serial.println("Error getting IP address via DHCP, trying again...");
-    delay(IP_DELAY);
-  }  
+  while (tryToInitializeEthernet) {
+    initCount++;
+    Serial.print("Attempt #");
+    Serial.print(initCount);
+    Serial.print("...");
+    
+    if (Ethernet.begin(mac) == 1) {
+      initializedEthernet = 1;
+      tryToInitializeEthernet = 0;
+      Serial.println("succeeded.");
+    }
+    else {
+      Serial.print("failed");
+      initializedEthernet = 0;
+      if (initCount < DHCP_MAX_ATTEMPT_COUNT) {
+        tryToInitializeEthernet = 1;
+        Serial.print(", trying again in ");
+        Serial.print(IP_DELAY_SECONDS);
+        Serial.println(" seconds.");
+        delay(IP_DELAY);
+      }
+      else {
+        tryToInitializeEthernet = 0;
+        Serial.print("Aborting.");
+      }      
+    }    
+  }
+  Serial.println();
+
+  if (initializedEthernet) {
+    print_ip_address(Ethernet.localIP());
+  }
+  else {
+    Serial.print("Could not initialize ethernet card after ");
+    Serial.print(initCount);
+    Serial.print(" tries.");
+  }
+
+  Serial.println();
+  return;
 }
 
 void print_ip_address(IPAddress ipAddress) {
   const unsigned int OCTETS = 4;
-  Serial.print("Network initialized, IP address:");
+  Serial.print("Ethernet initialized, IP address:");
   for (unsigned int i=0; i<OCTETS; i++) {
     Serial.print(ipAddress[i]);
     if (i != OCTETS - 1) {
@@ -86,7 +121,6 @@ void read_temperature_value() {
 }
 
 void log_temperature(int sensorValue, float milliVolts, float temperature) {
-  
   // Write to the serial port.
   Serial.print("TMP36 reading: ");
   Serial.print(sensorValue);
