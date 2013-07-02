@@ -24,8 +24,8 @@ const byte SDCARD_PIN                      = 10;       // Required by the Ethern
 
 // Constants for converting the TMP36 readings into degress Celsius
 const float DEFAULT_TEMPERATURE_ADJUSTMENT = -2.7;     // Use this value to correct the reading of the TMP_36 sensor.
-const int SUPPLY_VOLTAGE                   = 5000;     // milliVolts
-float temperatureAdjustment                = 0;
+const float SUPPLY_VOLTAGE                 = 5000;     // milliVolts
+float temperatureAdjustment                = 0.0;
 
 // Ethernet variables.
 EthernetClient client;
@@ -43,7 +43,7 @@ XivelyDatastream datastreams[] = {
   XivelyDatastream(temperatureID, strlen(temperatureID), DATASTREAM_FLOAT),
   XivelyDatastream(temperatureAdjustmentID, strlen(temperatureAdjustmentID), DATASTREAM_FLOAT),
 };
-XivelyFeed feed(XIVELY_FEED_ID, datastreams, 2);
+XivelyFeed feed(XIVELY_FEED_ID, datastreams, 3);
 XivelyClient xivelyclient(client);
 
 void setup() {
@@ -68,13 +68,21 @@ void loop() {
 
 void init_temperature_adjustment() {  
   if (initializedEthernet) {
-    Serial.print("Contacting xively...");
+    Serial.print("Contacting Xively...");
     int getReturn = xivelyclient.get(feed, XIVELY_API_KEY);
 
     if(getReturn > 0){
       temperatureAdjustment = feed[2].getFloat();
-      Serial.print("got temperature adjustment : ");
-      Serial.print(temperatureAdjustment);
+      if (temperatureAdjustment == 0.0) {
+        temperatureAdjustment = DEFAULT_TEMPERATURE_ADJUSTMENT;
+        Serial.print("for some reason the Xively value is 0, using ");
+        Serial.print(temperatureAdjustment);
+        Serial.print(" instead");
+      }
+      else {
+        Serial.print("got temperature adjustment : ");
+        Serial.print(temperatureAdjustment);
+      }
     }
     else {
       Serial.print("HTTP Error");
