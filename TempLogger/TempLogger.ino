@@ -1,21 +1,8 @@
 /**
  *
  */
-#include <SPI.h>
-#include <Ethernet.h>
-#include <HttpClient.h>
-#include <Xively.h>
-#include "Secrets.h"  // Xively API key is defined in this file.
-
 const unsigned int BAUD_RATE               = 9600;
-const byte DHCP_MAX_ATTEMPT_COUNT          = 5;
-
-// Millisecond delays, depending on the context
-const unsigned int IP_DELAY                = 5000;     // The delay while trying to get the IP address via DHCP.
-const unsigned int IP_DELAY_SECONDS        = IP_DELAY / 1000;
-
-const unsigned long CONNECTION_INTERVAL    = 60000;    // Only poll the sensor every 10 minutes.
-//const unsigned int CONNECTION_INTERVAL     = 1000; 
+const unsigned int READING_DELAY           = 60000;
 
 // Pins in use by this sketch.
 const byte TEMP_SENSOR_PIN                 = 3;        // The temperature sensor pin is A0
@@ -24,26 +11,9 @@ const byte SDCARD_PIN                      = 10;       // Required by the Ethern
 
 // Constants for converting the TMP36 readings into degress Celsius
 const float DEFAULT_TEMPERATURE_ADJUSTMENT = -2.7;     // Use this value to correct the reading of the TMP_36 sensor.
-const float SUPPLY_VOLTAGE                 = 5000;     // milliVolts
-float temperatureAdjustment                = 0.0;
+const float SUPPLY_VOLTAGE                 = 5000;      // Volts, not milliVolts
 
-// Ethernet variables.
-EthernetClient client;
-int initializedEthernet                    = 0;
-byte mac[] = { 
-  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // MAC address for your Ethernet shield
-
-// Xively stuff
-char sensorID[]                            = "tmp36_sensor_reading";
-char temperatureID[]                       = "tmp36_temperature";
-
-XivelyDatastream datastreams[] = {
-  XivelyDatastream(sensorID, strlen(sensorID), DATASTREAM_FLOAT),
-  XivelyDatastream(temperatureID, strlen(temperatureID), DATASTREAM_FLOAT),
-};
-XivelyFeed feed(XIVELY_FEED_ID, datastreams, 2);
-XivelyClient xivelyclient(client);
-
+int firstReading = 1;
 void setup() {
   delay(250);
   Serial.begin(BAUD_RATE);
@@ -51,7 +21,7 @@ void setup() {
   Serial.println();
   Serial.println("********** SETUP     **********");
 
-  init_ethernet();
+  Serial.println("Looks like we're all initialized.");
 
   Serial.println();
   Serial.println("********** SETUP COMPLETE *****");    
@@ -60,94 +30,30 @@ void setup() {
 void loop() {
   Serial.println();
   read_temperature_value();
-  delay(CONNECTION_INTERVAL);
-}
-
-
-int init_ethernet() {
-  int tryToInitializeEthernet = 1;
-  int initCount               = 0;
-  const unsigned short SECONDS = IP_DELAY / 1000;
-
-  Serial.println("Initializing Ethernet.");
-
-  while (tryToInitializeEthernet) {
-    initCount++;
-    Serial.print("Attempt #");
-    Serial.print(initCount);
-    Serial.print("...");
-
-    if (Ethernet.begin(mac) == 1) {
-      initializedEthernet = 1;
-      tryToInitializeEthernet = 0;
-      Serial.println("succeeded.");
-    }
-    else {
-      Serial.print("failed");
-      initializedEthernet = 0;
-      if (initCount < DHCP_MAX_ATTEMPT_COUNT) {
-        tryToInitializeEthernet = 1;
-        Serial.print(", trying again in ");
-        Serial.print(IP_DELAY_SECONDS);
-        Serial.println(" seconds.");
-        delay(IP_DELAY);
-      }
-      else {
-        tryToInitializeEthernet = 0;
-        Serial.print("Aborting.");
-      }      
-    }    
-  }
-  Serial.println();
-
-  if (initializedEthernet) {
-    print_ip_address(Ethernet.localIP());
-  }
-  else {
-    Serial.print("Could not initialize ethernet card after ");
-    Serial.print(initCount);
-    Serial.print(" tries.");
-  }
-
-  Serial.println();
-  return initializedEthernet;
-}
-
-void print_ip_address(IPAddress ipAddress) {
-  const unsigned int OCTETS = 4;
-  Serial.print("Ethernet initialized, IP address: ");
-  for (unsigned int i=0; i<OCTETS; i++) {
-    Serial.print(ipAddress[i]);
-    if (i != OCTETS - 1) {
-      Serial.print(".");
-    }
-  }
-  Serial.println();
+  delay(READING_DELAY);
 }
 
 void read_temperature_value() {
-  const int sensorValue = analogRead(TEMP_SENSOR_PIN);
-  const float milliVolts = sensorValue * SUPPLY_VOLTAGE / 1024.0;
-  const float temperature = ((milliVolts - 500) / 10) + DEFAULT_TEMPERATURE_ADJUSTMENT;  
-
-  log_temperature(sensorValue, milliVolts, temperature);
-  send_to_xively(sensorValue, temperature);
+  int sensorValue = analogRead(TEMP_SENSOR_PIN);
+  if (firstReading) {
+    // we discard the first reading - give things a chance to settle down.
+    delay(2000);
+    sensorValue = analogRead(TEMP_SENSOR_PIN);
+    firstReading=0;
+  }
+  float temperature = convert_sensor_reading_to_celsius(sensorValue);
+  log_temperature(sensorValue, temperature);
 }
 
-void log_temperature(int sensorValue, float milliVolts, float temperature) {
-  // Write to the serial port.
-  Serial.print("TMP36 reading: ");
+float convert_sensor_reading_to_celsius(int sensor_value) {
+  const float volts = (sensor_value * SUPPLY_VOLTAGE) / 1024;
+  const float adjustedVoltage = (volts - 500);  
+  const float temperature = (adjustedVoltage / 10) + DEFAULT_TEMPERATURE_ADJUSTMENT;
+  return temperature;
+}
+
+void log_temperature(int sensorValue, float temperature) {
   Serial.print(sensorValue);
-  Serial.print(", milliVolts: ");
-  Serial.print(milliVolts);
-  Serial.print("mV, ");
-  Serial.print(temperature);
-  Serial.print(" Centigrade");
+  Serial.print(",");
+  Serial.println(temperature);
 }
-
-void send_to_xively(int sensorValue, float temperature) {
-  datastreams[0].setFloat(sensorValue);
-  datastreams[1].setFloat(temperature);
-  int ret = xivelyclient.put(feed, XIVELY_API_KEY);
-}
-
