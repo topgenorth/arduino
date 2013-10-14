@@ -1,6 +1,10 @@
 /**
- *
+ * Simple sketch to read the temperature, and then display a red/green/yellow light for 
+ * to hot/just right/ to cold. Will also write the temperature to a CSV on the SDcard.
  */
+
+#include "SD.h"
+
 const unsigned int BAUD_RATE               = 9600;
 const unsigned int READING_DELAY           = 30000;
 
@@ -18,24 +22,43 @@ const float SUPPLY_VOLTAGE                 = 5000;     // Volts, not milliVolts
 const float HOT_TEMP                       = 24;
 const float COOL_TEMP                      = 15;
 
+File tempFile;
 int readCount = 0;
+
 void setup() {
   delay(250);
   Serial.begin(BAUD_RATE);
+  delay(500);
 
-  Serial.println();
   Serial.println("********** SETUP     **********");
-
-  pinMode(HOT_PIN, OUTPUT);
-  pinMode(NORMAL_PIN, OUTPUT);
-  pinMode(COLD_PIN, OUTPUT);
-
-  Serial.println("Looks like we're all initialized.");
-
-  Serial.println();
+  init_led();
+  init_sdcard();
   Serial.println("********** SETUP COMPLETE *****");    
 }
 
+void init_led() {
+  pinMode(HOT_PIN, OUTPUT);
+  pinMode(NORMAL_PIN, OUTPUT);
+  pinMode(COLD_PIN, OUTPUT);  
+}
+
+void init_sdcard() {
+  Serial.print("Initializing SD card...");
+
+  pinMode(SDCARD_PIN, OUTPUT);
+  
+  if (!SD.begin(CS_PIN)) {
+    Serial.println("failed!");
+    return;
+  }
+
+  Serial.println("succeded.");
+  tempFile = SD.open("TEMP.CSV", FILE_WRITE);
+  if (tempFile) {
+    tempFile.println("Starting.");
+    tempFile.close();
+  }
+}
 
 void loop() {
   Serial.println();
@@ -93,4 +116,11 @@ void log_temperature(int sensorValue, float temperature) {
   Serial.print(sensorValue);
   Serial.print(",");
   Serial.println(temperature);
+
+  tempFile = SD.open("TEMP.CSV", FILE_WRITE);
+  if (tempFile) {
+    tempFile.print(sensorValue);
+    tempFile.print(",");
+    tempFile.println(temperature);
+  }
 }
