@@ -2,7 +2,7 @@
  *
  */
 const unsigned int BAUD_RATE               = 9600;
-const unsigned int READING_DELAY           = 5000;
+const unsigned int READING_DELAY           = 30000;
 
 // Pins in use by this sketch.
 const byte HOT_PIN                         = 2;        // The LED for when it's to warm
@@ -14,12 +14,11 @@ const byte SDCARD_PIN                      = 10;       // Required by the Ethern
 
 
 // Constants for converting the TMP36 readings into degress Celsius
-const float DEFAULT_TEMPERATURE_ADJUSTMENT = -29.5;     // Use this value to correct the reading of the TMP_36 sensor.
 const float SUPPLY_VOLTAGE                 = 5000;     // Volts, not milliVolts
 const float HOT_TEMP                       = 24;
-const float COOL_TEMP                      = 17;
+const float COOL_TEMP                      = 15;
 
-int firstReading = 1;
+int readCount = 0;
 void setup() {
   delay(250);
   Serial.begin(BAUD_RATE);
@@ -49,11 +48,11 @@ void loop() {
 
 float read_temperature_value() {
   int sensorValue = analogRead(TEMP_SENSOR_PIN);
-  if (firstReading) {
-    // we discard the first reading - give things a chance to settle down.
+  while (readCount < 3) {
+    // we discard the first three reading or so
     delay(2000);
     sensorValue = analogRead(TEMP_SENSOR_PIN);
-    firstReading=0;
+    readCount++;
   }
   float temperature = convert_sensor_reading_to_celsius(sensorValue);
   log_temperature(sensorValue, temperature);
@@ -83,9 +82,10 @@ void turn_on_led_for(float temperature) {
 }
 
 float convert_sensor_reading_to_celsius(int sensor_value) {
-  const float volts = (sensor_value * SUPPLY_VOLTAGE) / 1024;
+  const int adjusted_sensor_value= sensor_value - 50; // My TMP36 is damaged and the calibration is off by ~ this amount.
+  const float volts = (adjusted_sensor_value * SUPPLY_VOLTAGE) / 1024;
   const float adjustedVoltage = (volts - 500);  
-  const float temperature = (adjustedVoltage / 10) + DEFAULT_TEMPERATURE_ADJUSTMENT;
+  const float temperature = (adjustedVoltage / 10);
   return temperature;
 }
 
