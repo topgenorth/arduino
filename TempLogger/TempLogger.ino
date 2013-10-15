@@ -24,6 +24,7 @@ const float COOL_TEMP                      = 15;
 
 File tempFile;
 int readCount = 0;
+int writeToTemperatureFile = 1;
 
 void setup() {
   delay(250);
@@ -55,8 +56,11 @@ void init_sdcard() {
   Serial.println("succeded.");
   tempFile = SD.open("TEMP.CSV", FILE_WRITE);
   if (tempFile) {
-    tempFile.println("Starting.");
     tempFile.close();
+  }
+  else {
+    Serial.println("Failed to connnect to SD card.");
+    writeToTemperatureFile=0;
   }
 }
 
@@ -105,7 +109,7 @@ void turn_on_led_for(float temperature) {
 }
 
 float convert_sensor_reading_to_celsius(int sensor_value) {
-  const int adjusted_sensor_value= sensor_value - 50; // My TMP36 is damaged and the calibration is off by ~ this amount.
+  const int adjusted_sensor_value= sensor_value - 40; // My TMP36 is damaged and the calibration is off by ~ this amount.
   const float volts = (adjusted_sensor_value * SUPPLY_VOLTAGE) / 1024;
   const float adjustedVoltage = (volts - 500);  
   const float temperature = (adjustedVoltage / 10);
@@ -116,11 +120,21 @@ void log_temperature(int sensorValue, float temperature) {
   Serial.print(sensorValue);
   Serial.print(",");
   Serial.println(temperature);
+  write_values_to_csv(sensorValue, temperature);
+}
 
-  tempFile = SD.open("TEMP.CSV", FILE_WRITE);
-  if (tempFile) {
-    tempFile.print(sensorValue);
-    tempFile.print(",");
-    tempFile.println(temperature);
-  }
+void write_values_to_csv(int sensorValue, float temperature) {
+  if (writeToTemperatureFile) {
+    tempFile = SD.open("TEMP.CSV", FILE_WRITE);
+    if (tempFile) {
+      tempFile.print(sensorValue);
+      tempFile.print(",");
+      tempFile.println(temperature);
+      tempFile.close();
+    }
+    else {
+      Serial.println("Failed to open TEMP.CSV, cannot write data to SD card.");
+      writeToTemperatureFile = 0;
+    }
+  }  
 }
