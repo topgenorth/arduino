@@ -4,3 +4,4 @@ makefile
 .DS_Store
 /HomeLogs/Secrets.h
 /TempLogger/Secrets.h
+/TempLogger/stino.settings
