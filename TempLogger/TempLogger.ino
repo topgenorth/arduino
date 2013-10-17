@@ -3,10 +3,10 @@
  * to hot/just right/ to cold. Will also write the temperature to a CSV on the SDcard.
  */
 
-#include "SD.h"
+ #include "SD.h"
 
-const unsigned int BAUD_RATE               = 9600;
-const unsigned int READING_DELAY           = 30000;
+ const unsigned int BAUD_RATE               = 9600;
+ const unsigned int READING_DELAY           = 30000;
 
 // Pins in use by this sketch.
 const byte HOT_PIN                         = 2;        // The LED for when it's to warm
@@ -21,6 +21,7 @@ const byte SDCARD_PIN                      = 10;       // Required by the Ethern
 const float SUPPLY_VOLTAGE                 = 5000;     // Volts, not milliVolts
 const float HOT_TEMP                       = 24;
 const float COOL_TEMP                      = 15;
+const int TMP36_ADJUSTMENT                 = -60;      // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
 
 File tempFile;
 int readCount = 0;
@@ -92,24 +93,21 @@ void turn_on_led_for(float temperature) {
     digitalWrite(COLD_PIN, HIGH);
     digitalWrite(HOT_PIN, LOW);
     digitalWrite(NORMAL_PIN, LOW);
-    // Serial.println("  Turn on cool LED.");
   }
   else if (temperature > COOL_TEMP && temperature < HOT_TEMP) {
     digitalWrite(COLD_PIN, LOW);
     digitalWrite(HOT_PIN, LOW);
     digitalWrite(NORMAL_PIN, HIGH);
-    // Serial.println("  Turn on normal LED.");
   }
   else {
     digitalWrite(COLD_PIN, LOW);
     digitalWrite(HOT_PIN, HIGH);
     digitalWrite(NORMAL_PIN, LOW);
-    // Serial.println("  Turn on hot LED.");
   }
 }
 
 float convert_sensor_reading_to_celsius(int sensor_value) {
-  const int adjusted_sensor_value= sensor_value - 40; // My TMP36 is damaged and the calibration is off by ~ this amount.
+  const int adjusted_sensor_value= sensor_value + TMP36_ADJUSTMENT; 
   const float volts = (adjusted_sensor_value * SUPPLY_VOLTAGE) / 1024;
   const float adjustedVoltage = (volts - 500);  
   const float temperature = (adjustedVoltage / 10);
