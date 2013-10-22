@@ -16,7 +16,7 @@ const byte SDCARD_PIN                     = 10;       // Required by the Etherne
 const float SUPPLY_VOLTAGE                = 5000;     // Volts, not milliVolts
 const int TMP36_ADJUSTMENT                = -15;      // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
 const float SENSOR_GAP                    = 0.2;
-const int TEMPERATURE_READING_DELAY       = 5000;
+const int TEMPERATURE_READING_DELAY       = 10 * 60 * 1000;    // Sample the temperature this many minutes
 
 struct SensorValues {
   int tmp36_sensor;
