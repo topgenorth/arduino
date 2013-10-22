@@ -9,7 +9,7 @@
 
 const unsigned int BAUD_RATE              = 9600;
 const unsigned int PING_DELAY             = 2000;
-const byte TEMP_SENSOR_PIN                = 0;
+const byte TEMP_SENSOR_PIN                = 0;        // TMP36 Analog Pin 0
 const byte CS_PIN                         = 4;        // Required by the Ethernet shield
 const byte PING_SENSOR_PIN                = 7;        // PING))) sensor.
 const byte SDCARD_PIN                     = 10;       // Required by the Ethernet shield
@@ -26,9 +26,8 @@ struct SensorValues {
 };
 
 File logFile;
-float current_temperature = 0.0;
 unsigned long last_measurement = millis();
-SensorValues values = { 0, 0.0, 0, 0} ;
+SensorValues sensor_values = { 0, 0.0, 0, 0} ;
 
 void setup() {
   delay(250);
@@ -38,22 +37,25 @@ void setup() {
   Serial.println("********** SETUP     **********");
   init_sdcard();
   Serial.println("********** SETUP COMPLETE *****");    
-  delay(2000);
+  delay(5000);
 }
 
 void loop() {
-    unsigned long current_millis = millis();
-    if (abs(current_millis - last_measurement) >= TEMPERATURE_READING_DELAY) {
-      current_temperature = read_temperature_value();
-      last_measurement = millis();
-    }
+  unsigned long current_millis = millis();
 
-    const unsigned long duration = read_ping_value();
+  if (abs(current_millis - last_measurement) >= TEMPERATURE_READING_DELAY) {
+    sensor_values.tmp36_sensor = analogRead(TEMP_SENSOR_PIN);
+    sensor_values.temperature  = convert_sensor_reading_to_celsius(sensor_values.tmp36_sensor);
+    last_measurement = millis();
+  }
 
-    Serial.print("Distance: ");
-    Serial.print(scaled_value(microseconds_to_cm(duration)) / 100);
-    Serial.println(" cm");
-    delay(PING_DELAY);
+  sensor_values.ping_sensor = read_ping_value();
+  sensor_values.distance = scaled_value(microseconds_to_cm(sensor_values)) / 100;
+
+  log_sensorvalues(sensor_values);
+  write_values_to_csv(sensor_values);
+
+  delay(PING_DELAY);
 }
 
 long scaled_value(const float value) {
@@ -77,11 +79,7 @@ void init_sdcard() {
     }
 
     Serial.println("succeded.");
-    #if MEGA_ADK
-    logFile = SD.open("TEMPMEGA.CSV", FILE_WRITE);
-    #else
-    logFile = SD.open("TEMP.CSV", FILE_WRITE);
-    #endif
+    logFile = SD.open("DISTLOG.CSV", FILE_WRITE);
 
     if (logFile) {
         logFile.close();
@@ -94,44 +92,36 @@ void init_sdcard() {
     digitalWrite(SDCARD_PIN, HIGH);
 
     // It takes a bit of time for the w5100 to get going
-    delay(PING_DELAY);
-}
-
-const float read_temperature_value() {
-  int sensorValue = analogRead(TEMP_SENSOR_PIN);
-  const float temperature = convert_sensor_reading_to_celsius(sensorValue);
-  values.tmp36_sensor = sensorValue;
-  values.temperature = temperature;
-
-  log_temperature(values);
-  return temperature;
+    delay(5000);
 }
 
 float convert_sensor_reading_to_celsius(const int sensor_value) {
   const int adjusted_sensor_value= sensor_value + TMP36_ADJUSTMENT; 
   const float volts = (adjusted_sensor_value * SUPPLY_VOLTAGE) / 1024;
   const float adjustedVoltage = (volts - 500);  
-  const float temperature = (adjustedVoltage / 10);
-  return temperature;
+  return adjustedVoltage / 10;
 }
 
-void log_temperature(SensorValues sensorValues) {
-  Serial.print(sensorValues.tmp36_sensor);
+void log_sensorvalues(SensorValues values) {
+  Serial.print(values.ping_sensor);
   Serial.print(",");
-  Serial.println(sensorValues.temperature);
-  write_temperature_values_to_csv(sensorValues.tmp36_sensor, sensorValues.temperature);
+  Serial.print(values.distance);
+  Serial.print(",");
+  Serial.print(values.tmp36_sensor);
+  Serial.print(",");
+  Serial.println(values.temperature);
 }
 
-void write_temperature_values_to_csv(const int sensorValue, const float temperature) {
-  #if MEGA_ADK
-  logFile = SD.open("TEMPMEGA.CSV", FILE_WRITE);
-  #else
-  logFile = SD.open("TEMP.CSV", FILE_WRITE);
-  #endif 
+void write_values_to_csv(SensorValues values) {
+  logFile = SD.open("DISTLOG.CSV", FILE_WRITE);
   if (logFile) {
-    logFile.print(sensorValue);
+    logFile.print(values.ping_sensor);
     logFile.print(",");
-    logFile.println(temperature);
+    logFile.print(values.distance);
+    logFile.print(",");
+    logFile.print(values.tmp36_sensor);
+    logFile.print(",");
+    logFile.println(values.temperature);
     logFile.close();
   }
   else {
@@ -139,17 +129,17 @@ void write_temperature_values_to_csv(const int sensorValue, const float temperat
   }
 }
 
-const float microseconds_per_cm() {
-  return 1 / ((331.5 + (0.6 * current_temperature)) / 10000);
+const float microseconds_per_cm(float temperature) {
+  return 1 / ((331.5 + (0.6 * temperature)) / 10000);
 }
 
-const float sensor_offset() {
-  return SENSOR_GAP * microseconds_per_cm() * 2;
+const float sensor_offset(float temperature) {
+  return SENSOR_GAP * microseconds_per_cm(temperature) * 2;
 }
 
-const float microseconds_to_cm(const unsigned long microseconds) {
-  const float net_distance = max(0, microseconds - sensor_offset());
-  return net_distance / microseconds_per_cm() / 2;
+const float microseconds_to_cm(SensorValues values) {
+  const float net_distance = max(0, values.ping_sensor - sensor_offset(values.temperature));
+  return net_distance / microseconds_per_cm(values.temperature) / 2;
 }
 
 const unsigned long read_ping_value() {
