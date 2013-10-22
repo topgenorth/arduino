@@ -9,25 +9,12 @@
 
 const unsigned int BAUD_RATE               = 9600;
 const unsigned int READING_DELAY           = 3000;
-const byte HOT_PIN                         = 2;        // The LED for when it's to warm
-#if MEGA_ADK
 const byte TEMP_SENSOR_PIN                 = 0;
-#else
-const byte TEMP_SENSOR_PIN                 = 8;        // The temperature sensor pin is A0
-#endif
 const byte CS_PIN                          = 4;        // Required by the Ethernet shield
-const byte NORMAL_PIN                      = 5;        // The LED for when the temperature is OK
-const byte COLD_PIN                        = 6;        // The LED for it's to cool/cold
-#if MEGA_ADK
-const byte PING_SENSOR_PIN                 = 49;       // PING))) sensor.
-#else
 const byte PING_SENSOR_PIN                 = 7;        // PING))) sensor.
-#endif
 const byte SDCARD_PIN                      = 10;       // Required by the Ethernet shield
 const float SUPPLY_VOLTAGE                 = 5000;     // Volts, not milliVolts
-const int HOT_TEMP                         = 24;
-const int COOL_TEMP                        = 15;
-const int TMP36_ADJUSTMENT                 = -60;      // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
+const int TMP36_ADJUSTMENT                 = -15;      // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
 
 File logFile;
 int writeToLogFile = 1;
@@ -38,7 +25,6 @@ void setup() {
   delay(500);
 
   Serial.println("********** SETUP     **********");
-  init_led();
   init_sdcard();
   Serial.println("********** SETUP COMPLETE *****");    
   delay(2000);
@@ -53,15 +39,7 @@ void loop() {
     Serial.println(" cm");
     delay(100);
 
-    turn_on_led_for(temperature);
-
     delay(READING_DELAY);
-}
-
-void init_led() {
-  pinMode(HOT_PIN, OUTPUT);
-  pinMode(NORMAL_PIN, OUTPUT);
-  pinMode(COLD_PIN, OUTPUT);  
 }
 
 void init_sdcard() {
@@ -106,24 +84,6 @@ const float read_temperature_value() {
   const float temperature = convert_sensor_reading_to_celsius(sensorValue);
   log_temperature(sensorValue, temperature);
   return temperature;
-}
-
-void turn_on_led_for(float temperature) {
-  if (temperature <= COOL_TEMP) {
-    digitalWrite(COLD_PIN, HIGH);
-    digitalWrite(HOT_PIN, LOW);
-    digitalWrite(NORMAL_PIN, LOW);
-  }
-  else if (temperature > COOL_TEMP && temperature < HOT_TEMP) {
-    digitalWrite(COLD_PIN, LOW);
-    digitalWrite(HOT_PIN, LOW);
-    digitalWrite(NORMAL_PIN, HIGH);
-  }
-  else {
-    digitalWrite(COLD_PIN, LOW);
-    digitalWrite(HOT_PIN, HIGH);
-    digitalWrite(NORMAL_PIN, LOW);
-  }
 }
 
 float convert_sensor_reading_to_celsius(const int sensor_value) {
