@@ -1,6 +1,5 @@
 /**
- * Simple sketch to read the temperature, and then display a red/green/yellow light for 
- * to hot/just right/ to cold. Will also write the temperature to a CSV on the SDcard.
+ * This sketch will read the distance to an object using the PING))) sensor.
  * 
  */
 #include "SD.h" 
@@ -9,11 +8,13 @@
 #define MEGA_ADK 1
 
 const unsigned int BAUD_RATE               = 9600;
-const unsigned int READING_DELAY           = 30000;
-
-// Pins in use by this sketch.
+const unsigned int READING_DELAY           = 3000;
 const byte HOT_PIN                         = 2;        // The LED for when it's to warm
-const byte TEMP_SENSOR_PIN                 = 3;        // The temperature sensor pin is A0
+#if MEGA_ADK
+const byte TEMP_SENSOR_PIN                 = 0;
+#else
+const byte TEMP_SENSOR_PIN                 = 8;        // The temperature sensor pin is A0
+#endif
 const byte CS_PIN                          = 4;        // Required by the Ethernet shield
 const byte NORMAL_PIN                      = 5;        // The LED for when the temperature is OK
 const byte COLD_PIN                        = 6;        // The LED for it's to cool/cold
@@ -23,23 +24,13 @@ const byte PING_SENSOR_PIN                 = 49;       // PING))) sensor.
 const byte PING_SENSOR_PIN                 = 7;        // PING))) sensor.
 #endif
 const byte SDCARD_PIN                      = 10;       // Required by the Ethernet shield
-
-// Constants for the PING)))
-const float SENSOR_GAP = 0.2;
-
-// Constants for converting the TMP36 readings into degress Celsius
 const float SUPPLY_VOLTAGE                 = 5000;     // Volts, not milliVolts
-const float HOT_TEMP                       = 24;
-const float COOL_TEMP                      = 15;
-#if MEGA_ADK 
+const int HOT_TEMP                         = 24;
+const int COOL_TEMP                        = 15;
 const int TMP36_ADJUSTMENT                 = -60;      // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
-#else
-const int TMP36_ADJUSTMENT                 = -167;
-#endif
 
 File logFile;
 int writeToLogFile = 1;
-int readCount = 0;
 
 void setup() {
   delay(250);
@@ -52,6 +43,7 @@ void setup() {
   Serial.println("********** SETUP COMPLETE *****");    
   delay(2000);
 }
+
 void loop() {
     const float temperature = read_temperature_value();
     const unsigned long duration = read_ping_value();
@@ -111,15 +103,8 @@ void init_sdcard() {
 
 const float read_temperature_value() {
   int sensorValue = analogRead(TEMP_SENSOR_PIN);
-  while (readCount < 3) {
-    // we discard the first three reading or so
-    delay(2000);
-    sensorValue = analogRead(TEMP_SENSOR_PIN);
-    readCount++;
-  }
   const float temperature = convert_sensor_reading_to_celsius(sensorValue);
   log_temperature(sensorValue, temperature);
-
   return temperature;
 }
 
@@ -153,15 +138,15 @@ void log_temperature(const int sensorValue, const float temperature) {
   Serial.print(sensorValue);
   Serial.print(",");
   Serial.println(temperature);
-  write_values_to_csv(sensorValue, temperature);
+  write_temperature_values_to_csv(sensorValue, temperature);
 }
 
-void write_values_to_csv(const int sensorValue, const float temperature) {
+void write_temperature_values_to_csv(const int sensorValue, const float temperature) {
   if (writeToLogFile) {
     #if MEGA_ADK
     logFile = SD.open("TEMPMEGA.CSV", FILE_WRITE);
     #else
-    logFile = SD.open("MEGA.CSV", FILE_WRITE);
+    logFile = SD.open("TEMP.CSV", FILE_WRITE);
     #endif 
     if (logFile) {
       logFile.print(sensorValue);
@@ -187,7 +172,6 @@ const unsigned long read_ping_value() {
     digitalWrite(PING_SENSOR_PIN, HIGH);
     delayMicroseconds(5);
     digitalWrite(PING_SENSOR_PIN, LOW); 
-
     pinMode(PING_SENSOR_PIN, INPUT);
     return pulseIn(PING_SENSOR_PIN, HIGH);
 }
