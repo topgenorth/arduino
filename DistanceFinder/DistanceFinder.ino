@@ -7,17 +7,20 @@
 // Set this to 0 for the Uno R3, 1 for the Mega ADK board.
 #define MEGA_ADK 1
 
-const unsigned int BAUD_RATE               = 9600;
-const unsigned int READING_DELAY           = 3000;
-const byte TEMP_SENSOR_PIN                 = 0;
-const byte CS_PIN                          = 4;        // Required by the Ethernet shield
-const byte PING_SENSOR_PIN                 = 7;        // PING))) sensor.
-const byte SDCARD_PIN                      = 10;       // Required by the Ethernet shield
-const float SUPPLY_VOLTAGE                 = 5000;     // Volts, not milliVolts
-const int TMP36_ADJUSTMENT                 = -15;      // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
+const unsigned int BAUD_RATE              = 9600;
+const unsigned int PING_DELAY             = 2000;
+const byte TEMP_SENSOR_PIN                = 0;
+const byte CS_PIN                         = 4;        // Required by the Ethernet shield
+const byte PING_SENSOR_PIN                = 7;        // PING))) sensor.
+const byte SDCARD_PIN                     = 10;       // Required by the Ethernet shield
+const float SUPPLY_VOLTAGE                = 5000;     // Volts, not milliVolts
+const int TMP36_ADJUSTMENT                = -15;      // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
+const float SENSOR_GAP                    = 0.2;
+const int TEMPERATURE_READING_DELAY       = 5000;
 
 File logFile;
-int writeToLogFile = 1;
+float current_temperature = 0.0;
+unsigned long last_measurement = millis();
 
 void setup() {
   delay(250);
@@ -31,15 +34,23 @@ void setup() {
 }
 
 void loop() {
-    const float temperature = read_temperature_value();
+    unsigned long current_millis = millis();
+    if (abs(current_millis - last_measurement) >= TEMPERATURE_READING_DELAY) {
+      current_temperature = read_temperature_value();
+      last_measurement = millis();
+    }
+
     const unsigned long duration = read_ping_value();
 
     Serial.print("Distance: ");
-    Serial.print(microseconds_to_cm(duration));
+    Serial.print(scaled_value(microseconds_to_cm(duration)) / 100);
     Serial.println(" cm");
-    delay(100);
+    delay(PING_DELAY);
+}
 
-    delay(READING_DELAY);
+long scaled_value(const float value) {
+  float round_offset = value < 0 ? -0.5 : 0.5;
+  return (long) (value * 100 + round_offset);
 }
 
 void init_sdcard() {
@@ -69,14 +80,13 @@ void init_sdcard() {
     }
     else {
         Serial.println("Failed to connnect to SD card.");
-        writeToLogFile=0;
     }
 
     // Setup up w5100
     digitalWrite(SDCARD_PIN, HIGH);
 
     // It takes a bit of time for the w5100 to get going
-    delay(2000);
+    delay(PING_DELAY);
 }
 
 const float read_temperature_value() {
@@ -102,27 +112,33 @@ void log_temperature(const int sensorValue, const float temperature) {
 }
 
 void write_temperature_values_to_csv(const int sensorValue, const float temperature) {
-  if (writeToLogFile) {
-    #if MEGA_ADK
-    logFile = SD.open("TEMPMEGA.CSV", FILE_WRITE);
-    #else
-    logFile = SD.open("TEMP.CSV", FILE_WRITE);
-    #endif 
-    if (logFile) {
-      logFile.print(sensorValue);
-      logFile.print(",");
-      logFile.println(temperature);
-      logFile.close();
-    }
-    else {
-      Serial.println("Failed to open CSV file, cannot write data to SD card.");
-      writeToLogFile = 0;
-    }
-  }  
+  #if MEGA_ADK
+  logFile = SD.open("TEMPMEGA.CSV", FILE_WRITE);
+  #else
+  logFile = SD.open("TEMP.CSV", FILE_WRITE);
+  #endif 
+  if (logFile) {
+    logFile.print(sensorValue);
+    logFile.print(",");
+    logFile.println(temperature);
+    logFile.close();
+  }
+  else {
+    Serial.println("Failed to open CSV file, cannot write data to SD card.");
+  }
 }
 
-unsigned long microseconds_to_cm(const unsigned long microseconds) {
-    return microseconds / 29 / 2;
+const float microseconds_per_cm() {
+  return 1 / ((331.5 + (0.6 * current_temperature)) / 10000);
+}
+
+const float sensor_offset() {
+  return SENSOR_GAP * microseconds_per_cm() * 2;
+}
+
+const float microseconds_to_cm(const unsigned long microseconds) {
+  const float net_distance = max(0, microseconds - sensor_offset());
+  return net_distance / microseconds_per_cm() / 2;
 }
 
 const unsigned long read_ping_value() {
