@@ -18,9 +18,17 @@ const int TMP36_ADJUSTMENT                = -15;      // My TMP36 seems to be da
 const float SENSOR_GAP                    = 0.2;
 const int TEMPERATURE_READING_DELAY       = 5000;
 
+struct SensorValues {
+  int tmp36_sensor;
+  float temperature;
+  unsigned long ping_sensor;
+  int distance;
+};
+
 File logFile;
 float current_temperature = 0.0;
 unsigned long last_measurement = millis();
+SensorValues values = { 0, 0.0, 0, 0} ;
 
 void setup() {
   delay(250);
@@ -92,7 +100,10 @@ void init_sdcard() {
 const float read_temperature_value() {
   int sensorValue = analogRead(TEMP_SENSOR_PIN);
   const float temperature = convert_sensor_reading_to_celsius(sensorValue);
-  log_temperature(sensorValue, temperature);
+  values.tmp36_sensor = sensorValue;
+  values.temperature = temperature;
+
+  log_temperature(values);
   return temperature;
 }
 
@@ -104,11 +115,11 @@ float convert_sensor_reading_to_celsius(const int sensor_value) {
   return temperature;
 }
 
-void log_temperature(const int sensorValue, const float temperature) {
-  Serial.print(sensorValue);
+void log_temperature(SensorValues sensorValues) {
+  Serial.print(sensorValues.tmp36_sensor);
   Serial.print(",");
-  Serial.println(temperature);
-  write_temperature_values_to_csv(sensorValue, temperature);
+  Serial.println(sensorValues.temperature);
+  write_temperature_values_to_csv(sensorValues.tmp36_sensor, sensorValues.temperature);
 }
 
 void write_temperature_values_to_csv(const int sensorValue, const float temperature) {
