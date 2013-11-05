@@ -5,16 +5,17 @@
 #include "SD.h" 
 
 // Set this to 0 for the Uno R3, 1 for the Mega ADK board.
-#define MEGA_ADK 1
+#define MEGA_ADK 0
 
 const unsigned int BAUD_RATE              = 9600;
 const unsigned int PING_DELAY             = 2000;
+const unsigned int REASONABLE_PING_VALUE  = 3000;     // If the PING))) sensor gives us a value higher than this, reject it.
 const byte TEMP_SENSOR_PIN                = 0;        // TMP36 Analog Pin 0
 const byte CS_PIN                         = 4;        // Required by the Ethernet shield
 const byte PING_SENSOR_PIN                = 7;        // PING))) sensor.
 const byte SDCARD_PIN                     = 10;       // Required by the Ethernet shield
 const float SUPPLY_VOLTAGE                = 5000;     // Volts, not milliVolts
-const int TMP36_ADJUSTMENT                = -15;      // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
+const int TMP36_ADJUSTMENT                = 0;      // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
 const float SENSOR_GAP                    = 0.2;
 const int TEMPERATURE_READING_DELAY       = 10 * 60 * 1000;    // Sample the temperature this many minutes
 
@@ -52,8 +53,13 @@ void loop() {
   sensor_values.ping_sensor = read_ping_value();
   sensor_values.distance = scaled_value(microseconds_to_cm(sensor_values)) / 100;
 
-  log_sensorvalues(sensor_values);
-  write_values_to_csv(sensor_values);
+  if (sensor_values.ping_sensor < REASONABLE_PING_VALUE) {
+    log_sensorvalues(sensor_values);
+    write_values_to_csv(sensor_values);    
+  }
+  else {
+    Serial.println("Unreasonable TMP36 value rejected.");
+  }
 
   delay(PING_DELAY);
 }
