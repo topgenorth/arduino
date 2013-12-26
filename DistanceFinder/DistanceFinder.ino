@@ -12,19 +12,27 @@ const unsigned int PING_DELAY             = 2000;
 const unsigned int REASONABLE_PING_VALUE  = 3000;     // If the PING))) sensor gives us a value higher than this, reject it.
 const byte TEMP_SENSOR_PIN                = 0;        // TMP36 Analog Pin 0
 const byte CS_PIN                         = 4;        // Required by the Ethernet shield
-const byte PING_SENSOR_PIN                = 7;        // PING))) sensor.
+const byte PING_SENSOR_PIN                = 7;        // PING))) sensor
 const byte SDCARD_PIN                     = 10;       // Required by the Ethernet shield
 const float SUPPLY_VOLTAGE                = 5000;     // Volts, not milliVolts
-const int TMP36_ADJUSTMENT                = 0;        // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
-const float SENSOR_GAP                    = 0.2;      // This is the time to wait between pings.
-const int TEMPERATURE_READING_DELAY       = 1 * 60 * 1000;    // Sample the temperature this many minutes
-const int MEANINGFUL_TMP36_DELTA          = 0;        // The TMP36 sensor value must change by at least this amount to record the change.
+const float SENSOR_GAP                    = 0.2;      
 
+const int TMP36_ADJUSTMENT                = 0;        // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
+const int MEANINGFUL_DISTANCE_DELTA       = 7;        // The PING))) sensor reading must change by this amount, otherwise it's not significant enough to record
+const float SPEED_OF_SOUND                = 331.5;   // millimetres per second
+const int TEMPERATURE_READING_DELAY       = 1 * 60 * 1000;    // Sample the temperature this many minutes
+
+/**
+ * tmp36_sensor - The raw value from the tmp36 sensor
+ * temperature  - Temperature in Celsius
+ * ping_sensor  - The duration of the PING))), in microseconds
+ * distance     - The distance to the object, in millimetres
+ */
 struct SensorValues {
-  int tmp36_sensor;
-  float temperature;
-  unsigned long ping_sensor;
-  int distance;
+  int tmp36_sensor;                                   
+  float temperature;                                  
+  unsigned long ping_sensor;                          
+  int distance;                                       
 };
 
 File logFile;
@@ -43,7 +51,7 @@ void setup() {
 }
 
 void init_sdcard() {
-    Serial.println("DistanceFinder.ino v2 started.");
+    Serial.println("DistanceFinder.ino v2");
     Serial.print("Initializing SD card...");
 
     #if MEGA_ADK
@@ -58,11 +66,10 @@ void init_sdcard() {
         return;
     }
 
-    Serial.println("succeded.");
+    Serial.println("succeeded.");
     logFile = SD.open("DISTLOG.CSV", FILE_WRITE);
 
     if (logFile) {
-        logFile.println("DistanceFinder.ino v2 started.");
         logFile.close();
     }
     else {
@@ -80,12 +87,12 @@ void loop() {
   update_temperature();
   update_distance();
   if (sensor_values.ping_sensor < REASONABLE_PING_VALUE) {
-    write_values_to_csv(sensor_values);    
+    write_values_to_csv();    
   }
   else {
     Serial.println("Unreasonable TMP36 value rejected.");
   }
-  log_sensorvalues(sensor_values);
+  log_sensorvalues();
   delay(PING_DELAY);
 }
 
@@ -119,10 +126,12 @@ float convert_tmp36_reading_to_celsius() {
  * Returns 1 if the distance has been updated, 0 if it hasn't.
  */ 
 int update_distance() {
-  unsigned long ping_value = read_ping_value();
-  if (abs(ping_value - sensor_values.ping_sensor) >= MEANINGFUL_TMP36_DELTA) {
+  const unsigned long ping_value = read_ping_value();
+  const unsigned long ping_delta = abs(ping_value - sensor_values.ping_sensor);
+
+  if (ping_delta >= MEANINGFUL_DISTANCE_DELTA) {
     sensor_values.ping_sensor = ping_value;  
-    sensor_values.distance = scaled_value(microseconds_to_distance(sensor_values)) / 100;
+    convert_ping_duration_to_distance();
     return 1;
   }
   else {
@@ -130,31 +139,53 @@ int update_distance() {
   }
 }
 
+/**
+ * This method will convert the ping sensor value to a distance.
+ */
+const void convert_ping_duration_to_distance() {
+  // correct the speed of sound based on the air temperature, in metres per second
+  const float adjustedSpeedOfSound = speed_of_sound(sensor_values.temperature);
+
+  // Now we find the total distance, in millimetres
+  float totalDistance =  sensor_values.ping_sensor * adjustedSpeedOfSound * 1000.0 / 1000000.0;
+
+  // The distance to the object, in millimetres, is 1/2 of the total distance.
+  unsigned int distance = totalDistance / 2;
+  sensor_values.distance = distance;
+}
+
+/**
+ * Adjusts the speed of sound for the air temperature. Returns metres per second. 
+ */
+const float speed_of_sound(float temperature) {
+  float adjustment = 0.606 * temperature;
+  return SPEED_OF_SOUND + adjustment;
+}
 int scaled_value(const float value) {
   float round_offset = value < 0 ? -0.5 : 0.5;
   return (long) (value * 100 + round_offset);
 }
 
-void log_sensorvalues(SensorValues values) {
-  Serial.print(values.ping_sensor);
+void log_sensorvalues() {
+  Serial.print(sensor_values.ping_sensor);
   Serial.print(",");
-  Serial.print(values.distance);
+  Serial.print(sensor_values.distance);
   Serial.print(",");
-  Serial.print(values.tmp36_sensor);
+  Serial.print(sensor_values.tmp36_sensor);
   Serial.print(",");
-  Serial.println(values.temperature);
+  Serial.println(sensor_values.temperature);
 }
 
-void write_values_to_csv(SensorValues values) {
+void write_values_to_csv() {
   logFile = SD.open("DISTLOG.CSV", FILE_WRITE);
   if (logFile) {
-    logFile.print(values.ping_sensor);
+    logFile.print(sensor_values.ping_sensor);
     logFile.print(",");
-    logFile.print(values.distance);
+    logFile.print(sensor_values.distance);
     logFile.print(",");
-    logFile.print(values.tmp36_sensor);
+    logFile.print(sensor_values.tmp36_sensor);
     logFile.print(",");
-    logFile.println(values.temperature);
+    logFile.println(sensor_values.temperature);
     logFile.close();
   }
   else {
@@ -162,31 +193,20 @@ void write_values_to_csv(SensorValues values) {
   }
 }
 
-const float sensor_offset(float temperature) {
-  return SENSOR_GAP * speed_of_sound(temperature) * 2;
-}
-
 /**
  * This function will figure out the speed of sound, adjusted by the temperature. The units
  * returned are either in millimetres or centimetres (depends on the USE_MM flag).
  */
-const float speed_of_sound(float temperature) {
-  float time_for_distance=1 / ((331.5 + (0.6 * temperature)) / 10000);
-#if USE_MM
-  return time_for_distance * 10;
-#else
-  return time_for_distance;
-#endif
-}
+// const float microseconds_to_cm(float temperature) {
+//   float speedOfSound = 331.5 + (0.606 * temperature); // Speed of sound in metres per second
 
-/**
- * This function will convert the duration (how long the ping was) to a distance. The units
- * returned are either millimeters or centimetres (depends on the USE_MM flag).
- */
-const float microseconds_to_distance(SensorValues values) {
-  const float net_distance = max(0, values.ping_sensor - sensor_offset(values.temperature));
-  return net_distance / speed_of_sound(values.temperature) / 2;
-}
+//   float time_for_distance= 1 / ((331.5 + (0.6 * temperature)) / 10000);
+// #if USE_MM
+//   return time_for_distance * 10;
+// #else
+//   return time_for_distance;
+// #endif
+// }
 
 /**
  * This function will fire off a ping and measure how long it takes to return.
