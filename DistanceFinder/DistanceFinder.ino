@@ -70,6 +70,7 @@ long scaled_value(const float value) {
 }
 
 void init_sdcard() {
+    Serial.println("DistanceFinder.ino v2 started.");
     Serial.print("Initializing SD card...");
 
     #if MEGA_ADK
@@ -88,6 +89,7 @@ void init_sdcard() {
     logFile = SD.open("DISTLOG.CSV", FILE_WRITE);
 
     if (logFile) {
+        logFile.println("DistanceFinder.ino v2 started.");
         logFile.close();
     }
     else {
