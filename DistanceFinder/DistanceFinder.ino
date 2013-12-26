@@ -42,58 +42,6 @@ void setup() {
   delay(5000);
 }
 
-void loop() {
-  update_temperature();
-  update_distance();
-  if (sensor_values.ping_sensor < REASONABLE_PING_VALUE) {
-    write_values_to_csv(sensor_values);    
-  }
-  else {
-    Serial.println("Unreasonable TMP36 value rejected.");
-  }
-  log_sensorvalues(sensor_values);
-  delay(PING_DELAY);
-}
-
-void update_temperature() {
-  unsigned long current_millis = millis();
-
-  int time_diff = abs(current_millis - last_measurement_time);
-  if (time_diff >= TEMPERATURE_READING_DELAY) {
-    sensor_values.tmp36_sensor = analogRead(TEMP_SENSOR_PIN);
-    convert_tmp36_reading_to_celsius();
-    last_measurement_time = millis();
-  }
-}
-
-float convert_tmp36_reading_to_celsius() {
-  const int adjusted_sensor_value= sensor_values.tmp36_sensor + TMP36_ADJUSTMENT; 
-  const float volts = (adjusted_sensor_value * SUPPLY_VOLTAGE) / 1024;
-  const float adjustedVoltage = (volts - 500.0);  
-  sensor_values.temperature = adjustedVoltage / 10.0;
-}
-
-/**
- * This function will update the distance, but only if it has changed by a meaningful amount.
- * Returns 1 if the distance has been updated, 0 if it hasn't.
- */ 
-int update_distance() {
-  unsigned long ping_value = read_ping_value();
-  if (abs(ping_value - sensor_values.ping_sensor) >= MEANINGFUL_TMP36_DELTA) {
-    sensor_values.ping_sensor = ping_value;  
-    sensor_values.distance = scaled_value(microseconds_to_distance(sensor_values)) / 100;
-    return 1;
-  }
-  else {
-    return 0;
-  }
-}
-
-int scaled_value(const float value) {
-  float round_offset = value < 0 ? -0.5 : 0.5;
-  return (long) (value * 100 + round_offset);
-}
-
 void init_sdcard() {
     Serial.println("DistanceFinder.ino v2 started.");
     Serial.print("Initializing SD card...");
@@ -126,6 +74,65 @@ void init_sdcard() {
 
     // It takes a bit of time for the w5100 to get going
     delay(5000);
+}
+
+void loop() {
+  update_temperature();
+  update_distance();
+  if (sensor_values.ping_sensor < REASONABLE_PING_VALUE) {
+    write_values_to_csv(sensor_values);    
+  }
+  else {
+    Serial.println("Unreasonable TMP36 value rejected.");
+  }
+  log_sensorvalues(sensor_values);
+  delay(PING_DELAY);
+}
+
+/**
+ * If enough time has elapsed since the last temperature reading, this function
+ * will convert the tmp36 sensor values to Celsius.
+ */
+void update_temperature() {
+  unsigned long current_millis = millis();
+
+  int time_diff = abs(current_millis - last_measurement_time);
+  if (time_diff >= TEMPERATURE_READING_DELAY) {
+    sensor_values.tmp36_sensor = analogRead(TEMP_SENSOR_PIN);
+    convert_tmp36_reading_to_celsius();
+    last_measurement_time = millis();
+  }
+}
+
+/**
+ * Does the math to convert the tmp36 value to Celsius (does not check for a time lapse).
+ */
+float convert_tmp36_reading_to_celsius() {
+  const int adjusted_sensor_value= sensor_values.tmp36_sensor + TMP36_ADJUSTMENT; 
+  const float volts = (adjusted_sensor_value * SUPPLY_VOLTAGE) / 1024;
+  const float adjustedVoltage = (volts - 500.0);  
+  sensor_values.temperature = adjustedVoltage / 10.0;
+}
+
+/**
+ * This function will update the distance, but only if it has changed by a meaningful amount.
+ * Returns 1 if the distance has been updated, 0 if it hasn't.
+ */ 
+int update_distance() {
+  unsigned long ping_value = read_ping_value();
+  if (abs(ping_value - sensor_values.ping_sensor) >= MEANINGFUL_TMP36_DELTA) {
+    sensor_values.ping_sensor = ping_value;  
+    sensor_values.distance = scaled_value(microseconds_to_distance(sensor_values)) / 100;
+    return 1;
+  }
+  else {
+    return 0;
+  }
+}
+
+int scaled_value(const float value) {
+  float round_offset = value < 0 ? -0.5 : 0.5;
+  return (long) (value * 100 + round_offset);
 }
 
 void log_sensorvalues(SensorValues values) {
