@@ -4,8 +4,8 @@
  */
 #include "SD.h" 
 
-// Set this to 0 for the Uno R3, 1 for the Mega ADK board.
-#define MEGA_ADK 0
+#define MEGA_ADK 0 // Set this to 0 for the Uno R3, 1 for the Mega ADK board.
+#define USE_MM 1   // Set this to 1 to measure in millimetres, set it to 0 to use centimetres
 
 const unsigned int BAUD_RATE              = 9600;
 const unsigned int PING_DELAY             = 2000;
@@ -15,9 +15,10 @@ const byte CS_PIN                         = 4;        // Required by the Etherne
 const byte PING_SENSOR_PIN                = 7;        // PING))) sensor.
 const byte SDCARD_PIN                     = 10;       // Required by the Ethernet shield
 const float SUPPLY_VOLTAGE                = 5000;     // Volts, not milliVolts
-const int TMP36_ADJUSTMENT                = 0;      // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
-const float SENSOR_GAP                    = 0.2;
-const int TEMPERATURE_READING_DELAY       = 10 * 60 * 1000;    // Sample the temperature this many minutes
+const int TMP36_ADJUSTMENT                = 0;        // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
+const float SENSOR_GAP                    = 0.2;      // This is the time to wait between pings.
+const int TEMPERATURE_READING_DELAY       = 1 * 60 * 1000;    // Sample the temperature this many minutes
+const int MEANINGFUL_TMP36_DELTA          = 0;        // The TMP36 sensor value must change by at least this amount to record the change.
 
 struct SensorValues {
   int tmp36_sensor;
@@ -27,8 +28,8 @@ struct SensorValues {
 };
 
 File logFile;
-unsigned long last_measurement = millis();
-SensorValues sensor_values = { 0, 0.0, 0, 0} ;
+unsigned long last_measurement_time = 0;
+SensorValues sensor_values = { -1000, -273, -1, -1} ;
 
 void setup() {
   delay(250);
@@ -42,29 +43,53 @@ void setup() {
 }
 
 void loop() {
-  unsigned long current_millis = millis();
-
-  if (abs(current_millis - last_measurement) >= TEMPERATURE_READING_DELAY) {
-    sensor_values.tmp36_sensor = analogRead(TEMP_SENSOR_PIN);
-    sensor_values.temperature  = convert_sensor_reading_to_celsius(sensor_values.tmp36_sensor);
-    last_measurement = millis();
-  }
-
-  sensor_values.ping_sensor = read_ping_value();
-  sensor_values.distance = scaled_value(microseconds_to_cm(sensor_values)) / 100;
-
+  update_temperature();
+  update_distance();
   if (sensor_values.ping_sensor < REASONABLE_PING_VALUE) {
-    log_sensorvalues(sensor_values);
     write_values_to_csv(sensor_values);    
   }
   else {
     Serial.println("Unreasonable TMP36 value rejected.");
   }
-
+  log_sensorvalues(sensor_values);
   delay(PING_DELAY);
 }
 
-long scaled_value(const float value) {
+void update_temperature() {
+  unsigned long current_millis = millis();
+
+  int time_diff = abs(current_millis - last_measurement_time);
+  if (time_diff >= TEMPERATURE_READING_DELAY) {
+    sensor_values.tmp36_sensor = analogRead(TEMP_SENSOR_PIN);
+    convert_tmp36_reading_to_celsius();
+    last_measurement_time = millis();
+  }
+}
+
+float convert_tmp36_reading_to_celsius() {
+  const int adjusted_sensor_value= sensor_values.tmp36_sensor + TMP36_ADJUSTMENT; 
+  const float volts = (adjusted_sensor_value * SUPPLY_VOLTAGE) / 1024;
+  const float adjustedVoltage = (volts - 500.0);  
+  sensor_values.temperature = adjustedVoltage / 10.0;
+}
+
+/**
+ * This function will update the distance, but only if it has changed by a meaningful amount.
+ * Returns 1 if the distance has been updated, 0 if it hasn't.
+ */ 
+int update_distance() {
+  unsigned long ping_value = read_ping_value();
+  if (abs(ping_value - sensor_values.ping_sensor) >= MEANINGFUL_TMP36_DELTA) {
+    sensor_values.ping_sensor = ping_value;  
+    sensor_values.distance = scaled_value(microseconds_to_distance(sensor_values)) / 100;
+    return 1;
+  }
+  else {
+    return 0;
+  }
+}
+
+int scaled_value(const float value) {
   float round_offset = value < 0 ? -0.5 : 0.5;
   return (long) (value * 100 + round_offset);
 }
@@ -103,13 +128,6 @@ void init_sdcard() {
     delay(5000);
 }
 
-float convert_sensor_reading_to_celsius(const int sensor_value) {
-  const int adjusted_sensor_value= sensor_value + TMP36_ADJUSTMENT; 
-  const float volts = (adjusted_sensor_value * SUPPLY_VOLTAGE) / 1024;
-  const float adjustedVoltage = (volts - 500);  
-  return adjustedVoltage / 10;
-}
-
 void log_sensorvalues(SensorValues values) {
   Serial.print(values.ping_sensor);
   Serial.print(",");
@@ -137,19 +155,35 @@ void write_values_to_csv(SensorValues values) {
   }
 }
 
-const float microseconds_per_cm(float temperature) {
-  return 1 / ((331.5 + (0.6 * temperature)) / 10000);
-}
-
 const float sensor_offset(float temperature) {
-  return SENSOR_GAP * microseconds_per_cm(temperature) * 2;
+  return SENSOR_GAP * speed_of_sound(temperature) * 2;
 }
 
-const float microseconds_to_cm(SensorValues values) {
+/**
+ * This function will figure out the speed of sound, adjusted by the temperature. The units
+ * returned are either in millimetres or centimetres (depends on the USE_MM flag).
+ */
+const float speed_of_sound(float temperature) {
+  float time_for_distance=1 / ((331.5 + (0.6 * temperature)) / 10000);
+#if USE_MM
+  return time_for_distance * 10;
+#else
+  return time_for_distance;
+#endif
+}
+
+/**
+ * This function will convert the duration (how long the ping was) to a distance. The units
+ * returned are either millimeters or centimetres (depends on the USE_MM flag).
+ */
+const float microseconds_to_distance(SensorValues values) {
   const float net_distance = max(0, values.ping_sensor - sensor_offset(values.temperature));
-  return net_distance / microseconds_per_cm(values.temperature) / 2;
+  return net_distance / speed_of_sound(values.temperature) / 2;
 }
 
+/**
+ * This function will fire off a ping and measure how long it takes to return.
+ */
 const unsigned long read_ping_value() {
     pinMode(PING_SENSOR_PIN, OUTPUT);
     digitalWrite(PING_SENSOR_PIN, LOW);
