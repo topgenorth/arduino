@@ -8,7 +8,7 @@
 #define USE_MM 1   // Set this to 1 to measure in millimetres, set it to 0 to use centimetres
 
 const unsigned int BAUD_RATE              = 9600;
-const unsigned int PING_DELAY             = 2000;
+const unsigned int PING_DELAY             = 1000;
 const unsigned int REASONABLE_PING_VALUE  = 3000;     // If the PING))) sensor gives us a value higher than this, reject it.
 const byte TEMP_SENSOR_PIN                = 0;        // TMP36 Analog Pin 0
 const byte CS_PIN                         = 4;        // Required by the Ethernet shield
@@ -19,8 +19,8 @@ const float SENSOR_GAP                    = 0.2;
 
 const int TMP36_ADJUSTMENT                = 0;        // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
 const int MEANINGFUL_DISTANCE_DELTA       = 7;        // The PING))) sensor reading must change by this amount, otherwise it's not significant enough to record
-const float SPEED_OF_SOUND                = 331.5;   // millimetres per second
-const int TEMPERATURE_READING_DELAY       = 1 * 60 * 1000;    // Sample the temperature this many minutes
+const float SPEED_OF_SOUND                = 331.5;    // metres per second
+const int TEMPERATURE_READING_DELAY       = 10 * 60 * 1000;    // Sample the temperature this many minutes
 
 /**
  * tmp36_sensor - The raw value from the tmp36 sensor
@@ -51,7 +51,7 @@ void setup() {
 }
 
 void init_sdcard() {
-    Serial.println("DistanceFinder.ino v2");
+    Serial.println("DistanceFinder.ino v3");
     Serial.print("Initializing SD card...");
 
     #if MEGA_ADK
@@ -70,6 +70,8 @@ void init_sdcard() {
     logFile = SD.open("DISTLOG.CSV", FILE_WRITE);
 
     if (logFile) {
+        logFile.println("DistanceFinder.ino v3");
+        logFile.println("ping value,distance,tmp36_value,temperature");
         logFile.close();
     }
     else {
@@ -90,7 +92,7 @@ void loop() {
     write_values_to_csv();    
   }
   else {
-    Serial.println("Unreasonable TMP36 value rejected.");
+    Serial.println("Unreasonable PING))) value rejected.");
   }
   log_sensorvalues();
   delay(PING_DELAY);
@@ -140,27 +142,29 @@ int update_distance() {
 }
 
 /**
- * This method will convert the ping sensor value to a distance.
+ * This method will convert the ping sensor value (microseconds) to a distance (millimetres).
  */
-const void convert_ping_duration_to_distance() {
+void convert_ping_duration_to_distance() {
   // correct the speed of sound based on the air temperature, in metres per second
   const float adjustedSpeedOfSound = speed_of_sound(sensor_values.temperature);
 
-  // Now we find the total distance, in millimetres
-  float totalDistance =  sensor_values.ping_sensor * adjustedSpeedOfSound * 1000.0 / 1000000.0;
+  // Now we find the net distance the ping travelled (i.e from the sensor, to the object, and then back).
+  // This value is in millimetres.
+  float netDistance =  (sensor_values.ping_sensor * adjustedSpeedOfSound) / 1000.0;
 
   // The distance to the object, in millimetres, is 1/2 of the total distance.
-  unsigned int distance = totalDistance / 2;
+  unsigned int distance = netDistance / 2;
   sensor_values.distance = distance;
 }
 
 /**
  * Adjusts the speed of sound for the air temperature. Returns metres per second. 
  */
-const float speed_of_sound(float temperature) {
+float speed_of_sound(float temperature) {
   float adjustment = 0.606 * temperature;
   return SPEED_OF_SOUND + adjustment;
 }
+
 int scaled_value(const float value) {
   float round_offset = value < 0 ? -0.5 : 0.5;
   return (long) (value * 100 + round_offset);
@@ -194,22 +198,7 @@ void write_values_to_csv() {
 }
 
 /**
- * This function will figure out the speed of sound, adjusted by the temperature. The units
- * returned are either in millimetres or centimetres (depends on the USE_MM flag).
- */
-// const float microseconds_to_cm(float temperature) {
-//   float speedOfSound = 331.5 + (0.606 * temperature); // Speed of sound in metres per second
-
-//   float time_for_distance= 1 / ((331.5 + (0.6 * temperature)) / 10000);
-// #if USE_MM
-//   return time_for_distance * 10;
-// #else
-//   return time_for_distance;
-// #endif
-// }
-
-/**
- * This function will fire off a ping and measure how long it takes to return.
+ * This function will fire off a ping and measure how long (in microseconds) it takes to return.
  */
 const unsigned long read_ping_value() {
     pinMode(PING_SENSOR_PIN, OUTPUT);
