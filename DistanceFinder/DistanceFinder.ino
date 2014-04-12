@@ -1,43 +1,60 @@
 /**
  * This sketch will read the distance to an object using the PING))) sensor.
  * 
+ * Using the code from http://arduino.cc/en/Tutorial/UdpNtpClient to get the time.
  */
-#include "SD.h" 
+ #include "SD.h" 
+ #include "floatToString.h"
+ #include "SensorValues.h"
+ #include <SPI.h>
+ #include <Ethernet.h>
+ #include <EthernetUdp.h>
 
-#define MEGA_ADK 0 // Set this to 0 for the Uno R3, 1 for the Mega ADK board.
-#define USE_MM 1   // Set this to 1 to measure in millimetres, set it to 0 to use centimetres
+#define MEGA_ADK 0                                    // Set this to 0 for the Uno R3, 1 for the Mega ADK board.
+
+/**
+ * tmp36_sensor - The raw value from the TMP36 sensor
+ * temperature  - Temperature in Celsius
+ * ping_sensor  - The duration of the PING))), in microseconds
+ * distance     - The distance to the object, in millimetres
+ */
+
+const char PROGRAM_NAME[]                 = "DistanceFinder.ino v4";
+const char LOGFILE_NAME[]                 = "SUMPLOG.CSV";
 
 const unsigned int BAUD_RATE              = 9600;
 const unsigned int PING_DELAY             = 1000;
 const unsigned int REASONABLE_PING_VALUE  = 3000;     // If the PING))) sensor gives us a value higher than this, reject it.
+
+// Constants for pin declarations
 const byte TEMP_SENSOR_PIN                = 0;        // TMP36 Analog Pin 0
 const byte CS_PIN                         = 4;        // Required by the Ethernet shield
 const byte PING_SENSOR_PIN                = 7;        // PING))) sensor
 const byte SDCARD_PIN                     = 10;       // Required by the Ethernet shield
 const float SUPPLY_VOLTAGE                = 5000;     // Volts, not milliVolts
-const float SENSOR_GAP                    = 0.2;      
 
+// Constants for the TMP36 sensor
 const int TMP36_ADJUSTMENT                = 0;        // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
 const int MEANINGFUL_DISTANCE_DELTA       = 7;        // The PING))) sensor reading must change by this amount, otherwise it's not significant enough to record
 const float SPEED_OF_SOUND                = 331.5;    // metres per second
 const int TEMPERATURE_READING_DELAY       = 10 * 60 * 1000;    // Sample the temperature this many minutes
 
-/**
- * tmp36_sensor - The raw value from the tmp36 sensor
- * temperature  - Temperature in Celsius
- * ping_sensor  - The duration of the PING))), in microseconds
- * distance     - The distance to the object, in millimetres
- */
-struct SensorValues {
-  int tmp36_sensor;                                   
-  float temperature;                                  
-  unsigned long ping_sensor;                          
-  int distance;                                       
-};
+// Constants for NTP
+const int NTP_PACKET_SIZE                 = 48;       // NTP time stamp is in the first 48 bytes of the message
+const unsigned int NTP_REQUEST_PORT       = 123;      // All NTP requests are on port 123.
+const unsigned int LOCAL_PORT             = 8888;     // The local port to listen for UDP packets.
 
+// Variables
+SensorValues sensor_values                = { -1000, -273, 0, -1} ;
+unsigned long last_measurement_time       = 0;
+byte mac[]                                = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+byte ethernetInitialize                   = 0;
 File logFile;
-unsigned long last_measurement_time = 0;
-SensorValues sensor_values = { -1000, -273, -1, -1} ;
+IPAddress timeServer(132, 163, 4, 101);               // time-a.timefreq.bldrdoc.gov NTP server
+// IPAddress timeServer(132, 163, 4, 102);               // time-b.timefreq.bldrdoc.gov NTP server
+// IPAddress timeServer(132, 163, 4, 103);               // time-c.timefreq.bldrdoc.gov NTP server
+byte packetBuffer[NTP_PACKET_SIZE];                   //buffer to hold incoming and outgoing packets 
+EthernetUDP Udp;                                      // A UDP instance to let us send and receive packets over UDP
 
 void setup() {
   delay(250);
@@ -46,55 +63,61 @@ void setup() {
 
   Serial.println("********** SETUP     **********");
   init_sdcard();
+  init_ethernet();  // call this AFTER we initialize the SD card as we will try to write stuff the SD card.
   Serial.println("********** SETUP COMPLETE *****");    
   delay(5000);
 }
 
 void init_sdcard() {
-    Serial.println("DistanceFinder.ino v3");
-    Serial.print("Initializing SD card...");
+  Serial.println(PROGRAM_NAME);
+  Serial.print("Initializing SD card...");
 
-    #if MEGA_ADK
-    // Disable w5100 while setting up SD
-    pinMode(SDCARD_PIN, OUTPUT);
-    digitalWrite(SDCARD_PIN, HIGH);
-    #endif
+  #if MEGA_ADK
+  // Disable w5100 while setting up SD
+  pinMode(SDCARD_PIN, OUTPUT);
+  digitalWrite(SDCARD_PIN, HIGH);
+  #endif
 
-    // Setup SD card...
-    if (!SD.begin(CS_PIN)) {
-        Serial.println("failed!");
-        return;
-    }
+  // Setup SD card...
+  if (!SD.begin(CS_PIN)) {
+    Serial.println("failed!");
+    return;
+  }
 
-    Serial.println("succeeded.");
-    logFile = SD.open("DISTLOG.CSV", FILE_WRITE);
+  Serial.println("succeeded.");
+  // println_to_logfile("epoch_time,ping value,distance,tmp36_value,temperature");
 
-    if (logFile) {
-        logFile.println("DistanceFinder.ino v3");
-        logFile.println("ping value,distance,tmp36_value,temperature");
-        logFile.close();
-    }
-    else {
-        Serial.println("Failed to connnect to SD card.");
-    }
+  // Setup up w5100
+  digitalWrite(SDCARD_PIN, HIGH);
 
-    // Setup up w5100
-    digitalWrite(SDCARD_PIN, HIGH);
+  // It takes a bit of time for the w5100 to get going
+  delay(5000);
+}
 
-    // It takes a bit of time for the w5100 to get going
-    delay(5000);
+void init_ethernet() {
+  if (Ethernet.begin(mac) == 0) {
+    logln("Could not initialize Ethernet.");
+    ethernetInitialize = 0;
+  }
+  else {
+    Udp.begin(LOCAL_PORT);
+    ethernetInitialize = 1;
+    logln("Initialized Ethernet.");
+  }
 }
 
 void loop() {
+  get_time_from_NTP();
+
   update_temperature();
   update_distance();
+
   if (sensor_values.ping_sensor < REASONABLE_PING_VALUE) {
-    write_values_to_csv();    
+    log_sensorvalues();
   }
   else {
     Serial.println("Unreasonable PING))) value rejected.");
   }
-  log_sensorvalues();
   delay(PING_DELAY);
 }
 
@@ -171,42 +194,132 @@ int scaled_value(const float value) {
 }
 
 void log_sensorvalues() {
-  Serial.print(sensor_values.ping_sensor);
-  Serial.print(",");
-  Serial.print(sensor_values.distance);
-  Serial.print(",");
-  Serial.print(sensor_values.tmp36_sensor);
-  Serial.print(",");
-  Serial.println(sensor_values.temperature);
-}
+  String line = String(sensor_values.epoch_time);
+  line += ",";
+  line += sensor_values.ping_sensor;
+  line += ",";
+  line += sensor_values.distance;
+  line += "mm,";
+  line += sensor_values.tmp36_sensor;
+  line += ",";
 
-void write_values_to_csv() {
-  logFile = SD.open("DISTLOG.CSV", FILE_WRITE);
-  if (logFile) {
-    logFile.print(sensor_values.ping_sensor);
-    logFile.print(",");
-    logFile.print(sensor_values.distance);
-    logFile.print(",");
-    logFile.print(sensor_values.tmp36_sensor);
-    logFile.print(",");
-    logFile.println(sensor_values.temperature);
-    logFile.close();
-  }
-  else {
-    Serial.println("Failed to open CSV file, cannot write data to SD card.");
-  }
+  // There is no += overload for floating point values.
+  char temperature_buffer[25];
+  floatToString(temperature_buffer, sensor_values.temperature, 1);
+  line += temperature_buffer;
+  line += "C";
+  logln(line);
 }
 
 /**
  * This function will fire off a ping and measure how long (in microseconds) it takes to return.
  */
-const unsigned long read_ping_value() {
-    pinMode(PING_SENSOR_PIN, OUTPUT);
-    digitalWrite(PING_SENSOR_PIN, LOW);
-    delayMicroseconds(2);
-    digitalWrite(PING_SENSOR_PIN, HIGH);
-    delayMicroseconds(5);
-    digitalWrite(PING_SENSOR_PIN, LOW); 
-    pinMode(PING_SENSOR_PIN, INPUT);
-    return pulseIn(PING_SENSOR_PIN, HIGH);
+ const unsigned long read_ping_value() {
+  pinMode(PING_SENSOR_PIN, OUTPUT);
+  digitalWrite(PING_SENSOR_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(PING_SENSOR_PIN, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(PING_SENSOR_PIN, LOW); 
+  pinMode(PING_SENSOR_PIN, INPUT);
+  return pulseIn(PING_SENSOR_PIN, HIGH);
+}
+
+// send an NTP request to the time server at the given address 
+unsigned long sendNTPpacket(IPAddress& address) {
+  // set all bytes in the buffer to 0
+  memset(packetBuffer, 0, NTP_PACKET_SIZE); 
+  // Initialize values needed to form NTP request
+  // (see URL above for details on the packets)
+  packetBuffer[0] = 0b11100011;   // LI, Version, Mode
+  packetBuffer[1] = 0;     // Stratum, or type of clock
+  packetBuffer[2] = 6;     // Polling Interval
+  packetBuffer[3] = 0xEC;  // Peer Clock Precision
+  // 8 bytes of zero for Root Delay & Root Dispersion
+  packetBuffer[12]  = 49; 
+  packetBuffer[13]  = 0x4E;
+  packetBuffer[14]  = 49;
+  packetBuffer[15]  = 52;
+
+  // all NTP fields have been given values, now you can send a packet requesting a timestamp:         
+  Udp.beginPacket(address, NTP_REQUEST_PORT);
+  Udp.write(packetBuffer, NTP_PACKET_SIZE);
+  Udp.endPacket();  
+}
+
+void get_time_from_NTP() {
+  unsigned long epoch = get_epoch_time();
+
+  String utcTime = String("The UTC time is ");
+  utcTime += (epoch  % 86400L) / 3600;  // print the hour
+  utcTime += ":";
+
+  if ( ((epoch % 3600) / 60) < 10 ) {
+    // In the first 10 minutes of each hour, we'll want a leading '0'
+    utcTime += '0';
+  }
+  utcTime += (epoch  % 3600) / 60;
+
+  utcTime += ':';
+  if ( (epoch % 60) < 10 ) {
+    // In the first 10 seconds of each minute, we'll want a leading '0'
+    utcTime += '0';
+  }
+  utcTime += epoch %60;
+
+  sensor_values.epoch_time = epoch;
+
+  //logln(utcTime);
+}
+
+unsigned long get_epoch_time() {
+  unsigned long epoch = 0;
+  if (ethernetInitialize == 0) {
+    return epoch;
+  }
+
+  sendNTPpacket(timeServer);  // send an NTP packeet to a time server;
+  delay(1000);                // wait to see if a reply is available;
+  if ( Udp.parsePacket() ) {  
+    // We've received a packet, read the data from it
+    Udp.read(packetBuffer,NTP_PACKET_SIZE);  // read the packet into the buffer
+
+    //the timestamp starts at byte 40 of the received packet and is four bytes,
+    // or two words, long. First, esxtract the two words:
+    unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
+    unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);  
+
+    // combine the four bytes (two words) into a long integer
+    // this is NTP time (seconds since Jan 1 1900):
+    unsigned long secsSince1900 = highWord << 16 | lowWord;  
+
+    // now convert NTP time into everyday time:
+    // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
+    const unsigned long seventyYears = 2208988800UL;     
+    // subtract seventy years:
+    epoch = secsSince1900 - seventyYears;  
+  }
+  
+  return epoch;
+}
+
+void logln(String line) {
+  // int length = line.length() + 1;
+  // char *ptr = (char*)malloc(length);
+
+  // line.toCharArray(ptr, length);
+
+  Serial.println(line);
+  // println_to_logfile(ptr);
+
+  logFile = SD.open(LOGFILE_NAME, FILE_WRITE);
+  if (logFile) {
+    logFile.println(line);
+    logFile.close();
+  }
+  else {
+    Serial.println("Couldn't open logfile.");
+  }
+  delay(750);
+
 }
