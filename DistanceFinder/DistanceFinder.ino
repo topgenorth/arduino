@@ -3,25 +3,20 @@
  * 
  * Using the code from http://arduino.cc/en/Tutorial/UdpNtpClient to get the time.
  */
- #include "SD.h" 
- #include "floatToString.h"
- #include "SensorValues.h"
- #include <SPI.h>
- #include <Ethernet.h>
- #include <EthernetUdp.h>
+#include "SD.h" 
+#include "floatToString.h"
+#include "SensorValues.h"
+#include "XivelyKey.h"
+#include <SPI.h>
+#include <Ethernet.h>
+#include <EthernetUdp.h>
+#include <HttpClient.h>
+#include <Xively.h>
 
 #define MEGA_ADK 0                                    // Set this to 0 for the Uno R3, 1 for the Mega ADK board.
 
-/**
- * tmp36_sensor - The raw value from the TMP36 sensor
- * temperature  - Temperature in Celsius
- * ping_sensor  - The duration of the PING))), in microseconds
- * distance     - The distance to the object, in millimetres
- */
-
-const char PROGRAM_NAME[]                 = "DistanceFinder.ino v4";
+const char PROGRAM_NAME[]                 = "DistanceFinder.ino v5";
 const char LOGFILE_NAME[]                 = "SUMPLOG.CSV";
-
 const unsigned int BAUD_RATE              = 9600;
 const unsigned int PING_DELAY             = 1000;
 const unsigned int REASONABLE_PING_VALUE  = 3000;     // If the PING))) sensor gives us a value higher than this, reject it.
@@ -44,12 +39,28 @@ const int NTP_PACKET_SIZE                 = 48;       // NTP time stamp is in th
 const unsigned int NTP_REQUEST_PORT       = 123;      // All NTP requests are on port 123.
 const unsigned int LOCAL_PORT             = 8888;     // The local port to listen for UDP packets.
 
+// Define the strings for our datastream IDs
+char timeChannel[] = "TIME_CHANNEL";
+char pingSensorChannel[] = "PING_SENSOR_CHANNEL";
+char tmp36Channel[] = "TMP36_SENSOR_CHANNEL";
+
+// Xively stuff here.
+XivelyDatastream datastreams[] = {
+  XivelyDatastream(timeChannel, strlen(timeChannel), DATASTREAM_INT),
+  XivelyDatastream(pingSensorChannel, strlen(pingSensorChannel), DATASTREAM_INT),
+  XivelyDatastream(tmp36Channel, strlen(tmp36Channel), DATASTREAM_INT)
+};
+XivelyFeed feed(XIVELY_FEED_ID, datastreams, 3 /* number of datastreams */);
+EthernetClient client;
+XivelyClient xivelyclient(client);
+
 // Variables
 SensorValues sensor_values                = { -1000, -273, 0, -1} ;
 unsigned long last_measurement_time       = 0;
 byte mac[]                                = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 byte ethernetInitialize                   = 0;
 File logFile;
+IPAddress xivelyServer(216,52,233,122);               // numeric IP for api.xively.com
 IPAddress timeServer(132, 163, 4, 101);               // time-a.timefreq.bldrdoc.gov NTP server
 // IPAddress timeServer(132, 163, 4, 102);               // time-b.timefreq.bldrdoc.gov NTP server
 // IPAddress timeServer(132, 163, 4, 103);               // time-c.timefreq.bldrdoc.gov NTP server
@@ -114,6 +125,14 @@ void loop() {
 
   if (sensor_values.ping_sensor < REASONABLE_PING_VALUE) {
     log_sensorvalues();
+
+    Serial.print("Uploading to Xively...");
+    datastreams[0].setInt(sensor_values.epoch_time);
+    datastreams[1].setInt(sensor_values.ping_sensor);
+    datastreams[2].setInt(sensor_values.tmp36_sensor);
+    int ret = xivelyclient.put(feed, XIVELY_API_KEY);
+    Serial.print("Xively return ");
+    Serial.println(ret);
   }
   else {
     Serial.println("Unreasonable PING))) value rejected.");
@@ -272,6 +291,7 @@ void get_time_from_NTP() {
   //logln(utcTime);
 }
 
+// Returns the number of seconds since January 1, 1970
 unsigned long get_epoch_time() {
   unsigned long epoch = 0;
   if (ethernetInitialize == 0) {
