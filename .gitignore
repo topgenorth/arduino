@@ -6,3 +6,5 @@ makefile
 /TempLogger/Secrets.h
 /TempLogger/stino.settings
 /DistanceFinder/stino.settings
+
+/DistanceFinder/XivelyKey.h
