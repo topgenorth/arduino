@@ -14,29 +14,11 @@
 #include <Xively.h>
 #include "LogToXively.h"
 #include "XivelyKey.h"
-const unsigned int LOOP_DELAY             = 5 * 60  * 1000;        // Number of minutes to delay the loop.
-const unsigned int PING_DELAY             = 5 * 1000;     // Wait this many milliseconds before sending another ping.
+const unsigned int LOOP_DELAY             = 10 * 60  * 1000;        // Number of minutes to delay the loop.
 const unsigned int REASONABLE_PING_VALUE  = 3000;     // If the PING))) sensor gives us a value higher than this, reject it.
-
-// Constants for pin declarations
-const byte TEMP_SENSOR_PIN                = 0;        // TMP36 Analog Pin 0
-const byte CS_PIN                         = 4;        // Required by the Ethernet shield
-const byte PING_SENSOR_PIN                = 7;        // PING))) sensor
-const byte SDCARD_PIN                     = 10;       // Required by the Ethernet shield
-const float SUPPLY_VOLTAGE                = 5000;     // milliVolts
-
-// Constants for the TMP36 sensor
-const int TMP36_ADJUSTMENT                = 0;        // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
-const int MEANINGFUL_DISTANCE_DELTA       = 7;        // The PING))) sensor reading must change by this amount, otherwise it's not significant enough to record
-const float SPEED_OF_SOUND                = 331.5;    // metres per second
-const int TEMPERATURE_READING_DELAY       = 10 * 60 * 1000;    // Sample the temperature this many minutes
 
 // Variables
 SensorValues sensor_values                = { -1000, -273, 0, -1} ;
-unsigned long last_measurement_time       = 0;
-byte ethernetInitialize                   = 0;
-byte mac[]                                = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
-byte ip[]                                 = { 192, 168, 100, 191 };
 
 XivelyDatastream datastreams[] = {
   XivelyDatastream(distanceChannel, strlen(distanceChannel), DATASTREAM_FLOAT),
@@ -60,20 +42,13 @@ void setup() {
   Serial.println(PROGRAM_NAME);
   Serial.println("This version logs to Xively.");
 
-  init_ethernet(); 
+  Serial.print("Initializing Ethernet...");
+  Ethernet.begin(mac, ip);
+  Serial.println("done.");
 
   Serial.println("********** SETUP COMPLETE *****");    
   Serial.println(" ");
   delay(5000);
-}
-
-void init_ethernet() {
-  Serial.print("Initializing Ethernet...");
-
-  ethernetInitialize = 0;
-  Ethernet.begin(mac, ip);
-  ethernetInitialize = 1;
-  Serial.println("done.");
 }
 
 void loop() {
@@ -82,10 +57,17 @@ void loop() {
 
   Serial.print("Distance = ");
   Serial.print(sensor_values.distance);
-  Serial.println("mm");
+  Serial.print("mm");
 
   if (sensor_values.ping_sensor < REASONABLE_PING_VALUE) {
-    log_to_xively();
+    datastreams[0].setFloat(sensor_values.distance);
+    datastreams[1].setInt(sensor_values.ping_sensor);
+    datastreams[2].setInt(sensor_values.tmp36_sensor);
+    int ret = xivelyclient.put(feed, XIVELY_API_KEY);
+
+    Serial.print(", Xively return code ");
+    Serial.print(ret);
+    Serial.println(".");
   }
   else {
     Serial.println("Unreasonable PING))) value rejected.");
@@ -178,18 +160,4 @@ int scaled_value(const float value) {
   digitalWrite(PING_SENSOR_PIN, LOW); 
   pinMode(PING_SENSOR_PIN, INPUT);
   return pulseIn(PING_SENSOR_PIN, HIGH);
-}
-
-
-void log_to_xively() {
-  datastreams[0].setFloat(sensor_values.distance);
-  datastreams[1].setInt(sensor_values.ping_sensor);
-  datastreams[2].setInt(sensor_values.tmp36_sensor);
-  int ret = xivelyclient.put(feed, XIVELY_API_KEY);
-}
-
-void logln(String line) {
-
-  Serial.println(line);
-
 }
