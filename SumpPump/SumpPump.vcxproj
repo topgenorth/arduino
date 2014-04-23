@@ -73,14 +73,14 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Sensors.h" />
+    <ClInclude Include="PingSensor.h" />
     <ClInclude Include="SumpPump.h" />
     <ClInclude Include="Tmp36Sensor.h" />
     <ClInclude Include="Visual Micro\.SumpPump.vsarduino.h" />
     <ClInclude Include="XivelyKey.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Sensors.cpp" />
+    <ClCompile Include="PingSensor.cpp" />
     <ClCompile Include="Tmp36Sensor.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

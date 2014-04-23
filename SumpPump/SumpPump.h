@@ -1,17 +1,23 @@
 #ifndef SUMPPUMP_H
 #define SUMPPUMP_H
 
+#if defined(ARDUINO) && ARDUINO >= 100
+#include "Arduino.h"
+#else
+#include "WProgram.h"
+#endif
+
 #define XIVELY_FEED_ID 1645597536
 
 // Constants
 const char PROGRAM_NAME[] = "DistanceFinder.ino v5";
 
 const unsigned int LOOP_DELAY = 10 * 60 * 1000;        // Number of minutes to delay the loop.
-const unsigned int REASONABLE_PING_VALUE = 3000;     // If the PING))) sensor gives us a value higher than this, reject it.
+//const unsigned int REASONABLE_PING_VALUE = 3000;     // If the PING))) sensor gives us a value higher than this, reject it.
 const int BAUD_RATE = 9600;
 const int TMP36_ADJUSTMENT = 0;        // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 
-const int MEANINGFUL_DISTANCE_DELTA = 7;        // The PING))) sensor reading must change by this amount, otherwise it's not significant enough to record
-const float SPEED_OF_SOUND = 331.5;    // metres per second
+//const int MEANINGFUL_DISTANCE_DELTA = 7;        // The PING))) sensor reading must change by this amount, otherwise it's not significant enough to record
+//const float SPEED_OF_SOUND = 331.5;    // metres per second
 
 // Constants for pin declarations
 const float SUPPLY_VOLTAGE = 5000;     // milliVolts
@@ -39,12 +45,4 @@ XivelyFeed feed(XIVELY_FEED_ID, datastreams, NUMBER_OF_CHANNELS /* number of dat
 EthernetClient client;
 XivelyClient xivelyclient(client);
 IPAddress xivelyServer(216, 52, 233, 122);               // numeric IP for api.xively.com
-
-struct SensorValues {
-	unsigned long epoch_time;     // The number of seconds since Jan 1 1970
-	int tmp36_sensor;             // The raw value from the TMP36 sensor
-	float temperature;            // The calculated temperature, in Celsius
-	unsigned long ping_sensor;    // The raw sensor value from the PING))), in microseconds.
-	int distance;                 // The distance to the object, in millimetres.
-};
 #endif

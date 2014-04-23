@@ -27,6 +27,8 @@ float Tmp36Sensor::getTemperature()
 
 float Tmp36Sensor::getSpeedOfSound()
 {
+	// returns the speed of sound in metres/second for a given temperature in Celsius.
+	// From http://en.wikipedia.org/wiki/Speed_of_sound#Practical_formula_for_dry_air
 	float adjustment = 0.606 * getTemperature();
-	return 331.5 + adjustment; // returns the speed of sound in degress celsius.
+	return 331.3 + adjustment; 
 }

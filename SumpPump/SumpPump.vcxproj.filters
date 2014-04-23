@@ -27,18 +27,18 @@
     <ClInclude Include="XivelyKey.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Sensors.h">
+    <ClInclude Include="Tmp36Sensor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Tmp36Sensor.h">
+    <ClInclude Include="PingSensor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Sensors.cpp">
+    <ClCompile Include="Tmp36Sensor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Tmp36Sensor.cpp">
+    <ClCompile Include="PingSensor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
