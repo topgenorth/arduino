@@ -44,6 +44,10 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Arduino\hardware\arduino\cores\arduino;C:\Program Files (x86)\Arduino\hardware\arduino\variants\standard;C:\Program Files (x86)\Arduino\libraries\SPI;C:\Program Files (x86)\Arduino\libraries\SPI\utility;C:\Program Files (x86)\Arduino\libraries\Ethernet;C:\Program Files (x86)\Arduino\libraries\Ethernet\utility;Z:\tom\Documents\Arduino\libraries\xively;Z:\tom\Documents\Arduino\libraries\xively\utility;Z:\tom\Documents\Arduino\libraries\HTTP;Z:\tom\Documents\Arduino\libraries\HTTP\utility;C:\Program Files (x86)\Arduino\libraries;C:\Program Files (x86)\Arduino\hardware\arduino\libraries;C:\Program Files (x86)\Visual Micro\Visual Micro for Arduino\Micro Platforms\default\debuggers;Z:\tom\Documents\Arduino\libraries;c:\program files (x86)\arduino\hardware\tools\avr\avr\include\;c:\program files (x86)\arduino\hardware\tools\avr\avr\include\avr\;c:\program files (x86)\arduino\hardware\tools\avr\avr\;c:\program files (x86)\arduino\hardware\tools\avr\lib\gcc\avr\4.3.2\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>Z:\tom\Documents\Arduino\SumpPump\Visual Micro\.SumpPump.vsarduino.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <IgnoreStandardIncludePath>true</IgnoreStandardIncludePath>
+      <PreprocessorDefinitions>__AVR_ATmega328p__;__AVR_ATmega328P__;ARDUINO=105;ARDUINO_MAIN;__AVR__;__avr__;F_CPU=16000000L;__cplusplus;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -64,6 +68,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="SumpPump.ino">
+      <FileType>CppCode</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Sensor.h" />
+    <ClInclude Include="Sensors.h" />
+    <ClInclude Include="SumpPump.h" />
+    <ClInclude Include="Tmp36Sensor.h" />
+    <ClInclude Include="Visual Micro\.SumpPump.vsarduino.h" />
+    <ClInclude Include="XivelyKey.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Sensors.cpp" />
+    <ClCompile Include="Tmp36Sensor.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

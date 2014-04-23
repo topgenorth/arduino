@@ -1,3 +1,4 @@
+#include "Sensors.h"
 #define MEGA_ADK 0                                    // Set this to 0 for the Uno R3, 1 for the Mega ADK board.
 
 #include <b64.h>
@@ -9,16 +10,14 @@
 
 #include "XivelyKey.h"
 #include "SumpPump.h"
-
+#include "Sensors.h"
 
 // Variables
-SensorValues sensor_values = { -1000, -273, 0, -1 };
-
+SensorsClass sensors(PING_SENSOR_PIN, TEMP_SENSOR_PIN);
 
 void setup()
 {
 	delay(250);
-
 	Serial.begin(BAUD_RATE);
 	delay(500);
 
@@ -34,12 +33,11 @@ void setup()
 	Serial.println("********** SETUP COMPLETE *****");
 	Serial.println(" ");
 	delay(5000);
-
 }
 
 void loop()
 {
-
-	/* add main program code here */
-
+	sensors.update();
+	
+	delay(LOOP_DELAY);
 }
