@@ -10,9 +10,6 @@
 #define XIVELY_FEED_ID 1645597536
 
 // Constants
-const char PROGRAM_NAME[] = "DistanceFinder.ino v5";
-
-const unsigned int LOOP_DELAY = 10 * 60 * 1000;        // Number of minutes to delay the loop.
 //const unsigned int REASONABLE_PING_VALUE = 3000;     // If the PING))) sensor gives us a value higher than this, reject it.
 const int BAUD_RATE = 9600;
 const int TMP36_ADJUSTMENT = 0;        // My TMP36 seems to be damaged/mis-calibrated. This should compensate? 

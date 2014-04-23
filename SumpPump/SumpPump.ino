@@ -12,6 +12,10 @@
 #include "Tmp36Sensor.h"
 #include "PingSensor.h"
 
+// Constants
+const char PROGRAM_NAME[] = "DistanceFinder.ino v5";
+const unsigned int LOOP_DELAY = 10 ; // Number of minutes to delay the loop.
+
 // Variables
 PingSensor pingSensor(PING_SENSOR_PIN);
 Tmp36Sensor tmp36Sensor(TEMP_SENSOR_PIN, SUPPLY_VOLTAGE);
@@ -47,4 +51,5 @@ void loop()
 	Serial.println("C.");
 
 	delay(LOOP_DELAY);
+	delay(LOOP_DELAY * 60 * 1000);
 }
