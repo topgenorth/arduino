@@ -13,10 +13,7 @@
 #include <Ethernet.h>
 #include <HttpClient.h>
 #include <Xively.h>
-#include "XivelyKey.h"
 #include "SumpPump.h"
-#include "Tmp36Sensor.h"
-#include "PingSensor.h"
 
 // Constants
 const char PROGRAM_NAME[] = "DistanceFinder.ino v5";

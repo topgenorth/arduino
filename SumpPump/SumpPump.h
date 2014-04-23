@@ -7,6 +7,11 @@
 #include "WProgram.h"
 #endif
 
+#include "XivelyKey.h"
+#include "Tmp36Sensor.h"
+#include "PingSensor.h"
+
+
 #define XIVELY_FEED_ID 1645597536
 
 // Constants
