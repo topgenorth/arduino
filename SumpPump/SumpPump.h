@@ -36,7 +36,7 @@ uint8_t device_mac_address[] = { 0x90, 0xA2, 0xDA, 0x0D, 0xAE, 0x8F };
 uint8_t device_ip_address[] = { 192, 168, 100, 191 };
 
 XivelyDatastream datastreams[] = {
-	XivelyDatastream(distanceChannel, strlen(distanceChannel), DATASTREAM_FLOAT),
+	XivelyDatastream(distanceChannel, strlen(distanceChannel), DATASTREAM_INT),
 	XivelyDatastream(pingSensorChannel, strlen(pingSensorChannel), DATASTREAM_INT),
 	XivelyDatastream(tmp36Channel, strlen(tmp36Channel), DATASTREAM_INT)
 };

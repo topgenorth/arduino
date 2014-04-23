@@ -19,10 +19,20 @@ int Tmp36Sensor::getLastValue()
 
 float Tmp36Sensor::getTemperature()
 {
-	// const int adjusted_sensor_value= sensor_values.tmp36_sensor + TMP36_ADJUSTMENT; 
-	float voltage = _lastValue * _supplyVoltage / 1024.0; // this is in milli-volts.
+	const int adjusted_sensor_value= _lastValue + Tmp36Sensor::Tmp36SensorAdjustment; 
+	float voltage = ((float)adjusted_sensor_value * _supplyVoltage) / 1024; // this is in milli-volts.
 	float adjustedVolts = voltage - 500.0; // Take away 500 millivolts.
 	float temperature = adjustedVolts / 10.0; // Divide by 10 to get the temperature in degrees Celsius.
+/*
+	Serial.print("   TMP36 > ");
+	Serial.print(_lastValue);
+	Serial.print(",");
+	Serial.print(voltage);
+	Serial.print(",");
+	Serial.print(temperature);
+	Serial.println(".");
+*/	
+	return temperature;
 }
 
 float Tmp36Sensor::getSpeedOfSound()

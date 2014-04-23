@@ -13,10 +13,11 @@ class Tmp36Sensor
 	uint8_t _pin;
 	int _lastValue;
 
-
 protected:
 
 public:
+	static const int Tmp36SensorAdjustment = -10;
+
 	Tmp36Sensor(uint8_t pin, float supplyVoltage);
 
 	void update();

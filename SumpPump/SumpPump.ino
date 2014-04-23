@@ -7,6 +7,8 @@
 * It should have the follow line in it:
 *      char XIVELY_API_KEY[] = "PUT YOUR XIVELY API KEY HERE";
 *
+* Xively Feed : https://xively.com/feeds/1645597536
+*
 * Tom Opgenorth (tom@opgenorth.net)
 */
 #include <SPI.h>
@@ -17,7 +19,7 @@
 
 // Constants
 const char PROGRAM_NAME[] = "DistanceFinder.ino v5";
-const int LOOP_DELAY = 10 ; // We wait this many minutes between pings.
+const int LOOP_DELAY = 3 ; // We wait this many minutes between pings.
 
 // Variables
 PingSensor pingSensor(PING_SENSOR_PIN);
@@ -45,21 +47,27 @@ void setup()
 
 void loop()
 {
-	pingSensor.update();	
+	int distance = pingSensor.getDistance(&tmp36Sensor);
+	unsigned long lastPingValue = pingSensor.getLastValue();
+	int lastTmp36Value = tmp36Sensor.getLastValue();
+	float lastTemp = tmp36Sensor.getTemperature();
 
-	datastreams[0].setInt(pingSensor.getDistance(tmp36Sensor));
-	datastreams[1].setInt(pingSensor.getLastValue());
-	datastreams[2].setInt(tmp36Sensor.getLastValue());
+	datastreams[0].setInt(distance);
+	datastreams[1].setInt(lastPingValue);
+	datastreams[2].setInt(lastTmp36Value);
 	int ret = xivelyclient.put(feed, XIVELY_API_KEY);
-
-	Serial.print("Measured distance: ");
-	Serial.print(pingSensor.getDistance(tmp36Sensor));
-	Serial.print(" @ ");
-	Serial.print(tmp36Sensor.getTemperature());
-	Serial.print("C. Xively return code ");
-	Serial.print(ret);
-	Serial.println(".");
 	
-	delay(LOOP_DELAY * 60 * 1000);
+	Serial.print("Values: ");
+	Serial.print(distance);
+	Serial.print(",");
+	Serial.print(lastPingValue);
+	Serial.print(",");
+	Serial.print(lastTemp);
+	Serial.print(",");
+	Serial.print(lastTmp36Value);
+	Serial.print(",");
+	Serial.println(ret);
+
+	delay(LOOP_DELAY * 60000);
 }
 

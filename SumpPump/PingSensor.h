@@ -14,7 +14,6 @@ class PingSensor
 	unsigned long _lastValue;
 
 protected:
-	float convertPingDurationToDistance();
 
 public:
 	
@@ -32,10 +31,10 @@ public:
 	PingSensor(uint8_t pin);
 	
 	void update();
-	long getLastValue();
+	unsigned long getLastValue();
 
 	// Returns the distance, in millimetres, that was measured.
-	int getDistance(Tmp36Sensor tmp36Sensor);
+	int getDistance(Tmp36Sensor* tmp36Sensor);
 };
 
 #endif

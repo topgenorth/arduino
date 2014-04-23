@@ -3,6 +3,7 @@
 PingSensor::PingSensor(uint8_t pin)
 {
 	_pin = pin;
+	_lastValue = 0;
 }
 
 void PingSensor::update() 
@@ -18,24 +19,37 @@ void PingSensor::update()
 	// Do some checks before accepting the new PING))) value.
 	unsigned long newValue = pulseIn(_pin, HIGH);
 
-	if (newValue <= PingSensor::MeaningfulDistanceDelta)
+	if (newValue <= PingSensor::ReasonablePingValue)
 	{
 		if (abs(_lastValue - newValue) > PingSensor::MeaningfulDistanceDelta)
-		{
+		{			
 			_lastValue = newValue;
 		}
 	}
 }
 
-long PingSensor::getLastValue()
+unsigned long PingSensor::getLastValue()
 {
 	return _lastValue;
 }
 
-int PingSensor::getDistance(Tmp36Sensor tmp36Sensor)
+int PingSensor::getDistance(Tmp36Sensor* tmp36Sensor)
 {
-	tmp36Sensor.update();
-	float netDistance = (_lastValue * tmp36Sensor.getSpeedOfSound()) / 1000.0;
-	int distance = netDistance / 2;
 
+	tmp36Sensor->update();
+	this->update();
+
+	float speedOfSound = tmp36Sensor->getSpeedOfSound();
+	float netDistance = ((float) _lastValue * speedOfSound) / 1000.0;
+	float  distance = netDistance / 2.0;
+/*
+	Serial.print("  > ");
+	Serial.print(speedOfSound);
+	Serial.print(",");
+	Serial.print(_lastValue);
+	Serial.print(",");
+	Serial.print(distance);
+	Serial.println(".");
+*/
+	return distance;
 }
