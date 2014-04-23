@@ -73,7 +73,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Sensor.h" />
     <ClInclude Include="Sensors.h" />
     <ClInclude Include="SumpPump.h" />
     <ClInclude Include="Tmp36Sensor.h" />

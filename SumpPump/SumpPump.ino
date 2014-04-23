@@ -15,6 +15,8 @@
 // Variables
 SensorsClass sensors(PING_SENSOR_PIN, TEMP_SENSOR_PIN);
 
+Tmp36Sensor tmp36Sensor(TEMP_SENSOR_PIN, SUPPLY_VOLTAGE);
+
 void setup()
 {
 	delay(250);
@@ -37,7 +39,7 @@ void setup()
 
 void loop()
 {
-	sensors.update();
+	tmp36Sensor.update();
 	
 	delay(LOOP_DELAY);
 }

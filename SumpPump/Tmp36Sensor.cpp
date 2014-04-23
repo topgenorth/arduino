@@ -20,13 +20,13 @@ int Tmp36Sensor::getLastValue()
 float Tmp36Sensor::getTemperature()
 {
 	// const int adjusted_sensor_value= sensor_values.tmp36_sensor + TMP36_ADJUSTMENT; 
-	float volts = _lastValue * _supplyVoltage / 1024.0;
-	float adjustedVolts = volts - 500.0;
-	float temperature = adjustedVolts / 10.0;
+	float voltage = _lastValue * _supplyVoltage / 1024.0; // this is in milli-volts.
+	float adjustedVolts = voltage - 500.0; // Take away 500 millivolts.
+	float temperature = adjustedVolts / 10.0; // Divide by 10 to get the temperature in degrees Celsius.
 }
 
 float Tmp36Sensor::getSpeedOfSound()
 {
 	float adjustment = 0.606 * getTemperature();
-	return 331.5 + adjustment;
+	return 331.5 + adjustment; // returns the speed of sound in degress celsius.
 }
