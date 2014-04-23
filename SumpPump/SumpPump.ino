@@ -32,7 +32,7 @@ void setup()
 	Serial.println("This version logs to Xively.");
 
 	Serial.print("Initializing Ethernet...");
-	Ethernet.begin(mac, ip);
+	Ethernet.begin(device_mac_address, device_ip_address);
 	Serial.println("done.");
 
 	Serial.println("********** SETUP COMPLETE *****");
@@ -42,14 +42,21 @@ void setup()
 
 void loop()
 {
-	pingSensor.update();
-	
+	pingSensor.update();	
+
+	datastreams[0].setInt(pingSensor.getDistance(tmp36Sensor));
+	datastreams[1].setInt(pingSensor.getLastValue());
+	datastreams[2].setInt(tmp36Sensor.getLastValue());
+	int ret = xivelyclient.put(feed, XIVELY_API_KEY);
+
 	Serial.print("Measured distance: ");
 	Serial.print(pingSensor.getDistance(tmp36Sensor));
 	Serial.print(" @ ");
 	Serial.print(tmp36Sensor.getTemperature());
-	Serial.println("C.");
-
-	delay(LOOP_DELAY);
+	Serial.print("C. Xively return code ");
+	Serial.print(ret);
+	Serial.println(".");
+	
 	delay(LOOP_DELAY * 60 * 1000);
 }
+
