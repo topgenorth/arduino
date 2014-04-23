@@ -1,12 +1,18 @@
-#define MEGA_ADK 0                                    // Set this to 0 for the Uno R3, 1 for the Mega ADK board.
-
-#include <b64.h>
-#include <util.h>
+/*
+* This sketch will use a PING))) ultrasonic sensor to find the distance
+* to an object. It requires a TMP36 sensor so that the speed of sound
+* can be adjusted according to the temperature of the air.
+*
+* There is a header file not include that defines the Xively API key. 
+* It should have the follow line in it:
+*      char XIVELY_API_KEY[] = "PUT YOUR XIVELY API KEY HERE";
+*
+* Tom Opgenorth (tom@opgenorth.net)
+*/
 #include <SPI.h>
 #include <Ethernet.h>
 #include <HttpClient.h>
 #include <Xively.h>
-
 #include "XivelyKey.h"
 #include "SumpPump.h"
 #include "Tmp36Sensor.h"
@@ -14,7 +20,7 @@
 
 // Constants
 const char PROGRAM_NAME[] = "DistanceFinder.ino v5";
-const unsigned int LOOP_DELAY = 10 ; // Number of minutes to delay the loop.
+const int LOOP_DELAY = 10 ; // We wait this many minutes between pings.
 
 // Variables
 PingSensor pingSensor(PING_SENSOR_PIN);
