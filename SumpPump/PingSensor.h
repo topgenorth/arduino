@@ -26,7 +26,9 @@ public:
 	// If the PING))) returns a value greater than this, then 
 	// something went wrong with the value. Arbitrarily 
 	// determined by inspecting the log files.
-	static const int ReasonablePingValue = 3000;
+	// This value represents the time, in microseconds, the Ping 
+	// takes (round trip);
+	static const int ReasonablePingValue = 2800;
 
 	PingSensor(uint8_t pin);
 	

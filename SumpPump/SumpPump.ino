@@ -19,7 +19,7 @@
 
 // Constants
 const char PROGRAM_NAME[] = "DistanceFinder.ino v5";
-const int LOOP_DELAY = 3 ; // We wait this many minutes between pings.
+const float LOOP_DELAY = 1.5 ; // We wait this many minutes between pings.
 
 // Variables
 PingSensor pingSensor(PING_SENSOR_PIN);
